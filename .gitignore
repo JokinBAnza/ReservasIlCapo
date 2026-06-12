@@ -1,0 +1,3 @@
+# El paquete de despliegue contiene secretos (claves, contraseñas, .env de
+# producción): se queda solo en este ordenador, nunca en GitHub.
+/despliegue/
