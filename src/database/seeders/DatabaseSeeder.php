@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Mesa;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,11 +17,18 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Usuario del personal del restaurante. ¡Cambiad la contraseña
+        // desde phpMyAdmin o tinker antes de publicar la web!
+        User::firstOrCreate(
+            ['email' => 'personal@ilcapo.local'],
+            [
+                'name' => 'Personal Il Capo',
+                'password' => Hash::make('IlCapo-2026'),
+            ],
+        );
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        if (Mesa::count() === 0) {
+            $this->call(MesasSeeder::class);
+        }
     }
 }
