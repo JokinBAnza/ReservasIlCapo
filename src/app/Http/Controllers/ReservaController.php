@@ -3,15 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Mail\ReservaConfirmada;
+use App\Models\Ajuste;
 use App\Models\Mesa;
 use App\Models\Reserva;
 use Carbon\Carbon;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 
 class ReservaController extends Controller
 {
@@ -31,12 +35,112 @@ class ReservaController extends Controller
         ]);
     }
 
+    // Mapa de ocupación de las mesas en una fecha y hora concretas
+    public function mapa(Request $request)
+    {
+        $fecha = $request->date('fecha') ?? today();
+        $horas = $this->horasDisponibles();
+        $hora = in_array($request->query('hora'), $horas) ? $request->query('hora') : $horas[0];
+
+        $fechaHora = Carbon::parse($fecha->toDateString().' '.$hora);
+        $duracion = config('reservas.duracion_horas');
+
+        // Qué reserva ocupa cada mesa en esa franja
+        $ocupadas = [];
+        Reserva::with('mesas')
+            ->where('fecha_hora', '>', $fechaHora->copy()->subHours($duracion))
+            ->where('fecha_hora', '<', $fechaHora->copy()->addHours($duracion))
+            ->get()
+            ->each(function (Reserva $reserva) use (&$ocupadas) {
+                foreach ($reserva->mesas as $mesa) {
+                    $ocupadas[$mesa->id] = $reserva;
+                }
+            });
+
+        return view('reservas.mapa', [
+            'comedores' => Mesa::orderBy('numero')->get()->groupBy('comedor'),
+            'ocupadas' => $ocupadas,
+            'fecha' => $fecha,
+            'hora' => $hora,
+            'horas' => $horas,
+        ]);
+    }
+
+    // El personal marca una mesa como ocupada por un cliente que llegó sin
+    // reserva: queda bloqueada en su franja y la web ya no puede asignarla
+    public function ocuparMesa(Request $request)
+    {
+        $datos = $request->validate([
+            'mesa_id' => ['required', 'exists:mesas,id'],
+            'fecha' => ['required', 'date'],
+            'hora' => ['required', 'date_format:H:i'],
+        ]);
+
+        $mesa = Mesa::findOrFail($datos['mesa_id']);
+        $fechaHora = Carbon::parse($datos['fecha'].' '.$datos['hora']);
+
+        try {
+            $resultado = Cache::lock('crear-reserva', 10)->block(5, function () use ($mesa, $fechaHora) {
+                $duracion = config('reservas.duracion_horas');
+
+                $ocupada = DB::table('mesa_reserva')
+                    ->join('reservas', 'reservas.id', '=', 'mesa_reserva.reserva_id')
+                    ->where('mesa_reserva.mesa_id', $mesa->id)
+                    ->where('reservas.fecha_hora', '>', $fechaHora->copy()->subHours($duracion))
+                    ->where('reservas.fecha_hora', '<', $fechaHora->copy()->addHours($duracion))
+                    ->exists();
+
+                if ($ocupada) {
+                    return ['error' => "La mesa {$mesa->numero} ya está ocupada en esa franja."];
+                }
+
+                DB::transaction(function () use ($mesa, $fechaHora) {
+                    $reserva = Reserva::create([
+                        'nombre' => 'Sin reserva',
+                        'apellidos' => '',
+                        'telefono' => '—',
+                        'personas' => $mesa->capacidad,
+                        'sin_reserva' => true,
+                        'fecha_hora' => $fechaHora,
+                    ]);
+                    $reserva->mesas()->attach($mesa->id);
+                });
+
+                return ['ok' => true];
+            });
+        } catch (LockTimeoutException) {
+            return back()->withErrors(['mapa' => 'Hay mucha actividad ahora mismo. Inténtalo de nuevo en unos segundos.']);
+        }
+
+        if (isset($resultado['error'])) {
+            return back()->withErrors(['mapa' => $resultado['error']]);
+        }
+
+        return back()->with('exito', "Mesa {$mesa->numero} marcada como ocupada (cliente sin reserva).");
+    }
+
+    public function liberarMesa(Reserva $reserva)
+    {
+        abort_unless($reserva->sin_reserva, 404);
+
+        $reserva->delete();
+
+        return back()->with('exito', 'Mesa liberada.');
+    }
+
     // Formulario de nueva reserva
     public function create()
     {
+        // Primer momento reservable ahora mismo: el formulario no ofrece
+        // horas anteriores (el personal solo tiene el límite de "ya pasó")
+        $margen = Auth::check()
+            ? now()
+            : now()->addMinutes((int) Ajuste::valor('antelacion_minima_minutos', config('reservas.antelacion_minima_minutos')));
+
         return view('reservas.create', [
             'maxPersonas' => $this->maxPersonas(),
             'horasPorTurno' => $this->horasPorTurno(),
+            'corte' => ['fecha' => $margen->toDateString(), 'hora' => $margen->format('H:i')],
         ]);
     }
 
@@ -98,32 +202,96 @@ class ReservaController extends Controller
 
         $fechaHora = Carbon::parse($datos['fecha'].' '.$datos['hora']);
 
-        $limitePorHora = config('reservas.maximo_reservas_por_hora');
+        // Días cerrados: por día de la semana, fecha puntual o periodo de vacaciones
+        $diasAbiertos = Ajuste::valor('dias_abiertos', [1, 2, 3, 4, 5, 6, 7]);
+        $fechasCerradas = Ajuste::valor('fechas_cerradas', []);
+        $fecha = $fechaHora->toDateString();
+        $enVacaciones = collect(Ajuste::valor('rangos_cerrados', []))
+            ->contains(fn (array $rango) => $fecha >= $rango[0] && $fecha <= $rango[1]);
 
-        if (Reserva::where('fecha_hora', $fechaHora)->count() >= $limitePorHora) {
+        if (! in_array($fechaHora->dayOfWeekIso, $diasAbiertos)
+            || in_array($fecha, $fechasCerradas)
+            || $enVacaciones) {
             return back()
                 ->withInput()
-                ->withErrors(['disponibilidad' => "A las {$datos['hora']} ya hay el máximo de {$limitePorHora} reservas. Elegid otra hora."]);
+                ->withErrors(['fecha' => 'Ese día el restaurante está cerrado. Elegid otra fecha, por favor.']);
         }
 
-        $mesas = $this->buscarMesasLibres($fechaHora, $datos['personas'], $datos['comedor']);
-
-        if (! $mesas) {
+        // Nadie puede reservar una hora que ya ha pasado, tampoco el personal
+        if ($fechaHora->lt(now())) {
             return back()
                 ->withInput()
-                ->withErrors(['disponibilidad' => 'No quedan mesas libres para ese grupo a esa hora en el comedor elegido.']);
+                ->withErrors(['hora' => 'Esa hora ya ha pasado. Elegid otra, por favor.']);
         }
 
-        $reserva = Reserva::create([
-            'nombre' => $datos['nombre'],
-            'apellidos' => $datos['apellidos'],
-            'telefono' => $datos['telefono'],
-            'email' => $datos['email'] ?? null,
-            'personas' => $datos['personas'],
-            'perro' => $conPerro,
-            'fecha_hora' => $fechaHora,
-        ]);
-        $reserva->mesas()->attach($mesas->pluck('id'));
+        // Antelación mínima para la web pública: durante el servicio, las
+        // mesas libres son para quien llega por la puerta. El personal
+        // logueado no tiene este límite (reservas telefónicas de última hora).
+        if (! Auth::check()) {
+            $antelacion = (int) Ajuste::valor('antelacion_minima_minutos', config('reservas.antelacion_minima_minutos'));
+
+            if ($fechaHora->lt(now()->addMinutes($antelacion))) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['hora' => "Las reservas online se cierran {$antelacion} minutos antes de la hora. Llámanos por teléfono y te buscamos hueco."]);
+            }
+        }
+
+        // Torno de entrada: las reservas se procesan de una en una para que
+        // dos peticiones simultáneas no puedan quedarse la misma mesa. La
+        // comprobación de disponibilidad y la creación van juntas bajo llave.
+        try {
+            $resultado = Cache::lock('crear-reserva', 10)->block(5, function () use ($datos, $fechaHora, $conPerro) {
+                // Mismo teléfono a la misma hora exacta: es un doble envío o un
+                // despiste; se rechaza para no duplicar (el personal sí puede,
+                // p. ej. al partir un grupo muy grande en dos reservas)
+                if (! Auth::check() && Reserva::where('telefono', $datos['telefono'])->where('fecha_hora', $fechaHora)->exists()) {
+                    return ['error' => 'Ya existe una reserva con este teléfono a esa misma hora. Si quieres cambiarla, anúlala primero.'];
+                }
+
+                $limitePorHora = Ajuste::valor('maximo_reservas_por_hora', config('reservas.maximo_reservas_por_hora'));
+
+                if (Reserva::where('fecha_hora', $fechaHora)->count() >= $limitePorHora) {
+                    return ['error' => "A las {$datos['hora']} ya hay el máximo de {$limitePorHora} reservas. Elegid otra hora."];
+                }
+
+                $mesas = $this->buscarMesasLibres($fechaHora, $datos['personas'], $datos['comedor']);
+
+                if (! $mesas) {
+                    return ['error' => 'No quedan mesas libres para ese grupo a esa hora en el comedor elegido.'];
+                }
+
+                $reserva = DB::transaction(function () use ($datos, $fechaHora, $conPerro, $mesas) {
+                    $reserva = Reserva::create([
+                        'nombre' => $datos['nombre'],
+                        'apellidos' => $datos['apellidos'],
+                        'telefono' => $datos['telefono'],
+                        'email' => $datos['email'] ?? null,
+                        'personas' => $datos['personas'],
+                        'perro' => $conPerro,
+                        'fecha_hora' => $fechaHora,
+                    ]);
+                    $reserva->mesas()->attach($mesas->pluck('id'));
+
+                    return $reserva;
+                });
+
+                return ['reserva' => $reserva, 'mesas' => $mesas];
+            });
+        } catch (LockTimeoutException) {
+            return back()
+                ->withInput()
+                ->withErrors(['disponibilidad' => 'Ahora mismo hay mucha gente reservando a la vez. Inténtalo de nuevo en unos segundos.']);
+        }
+
+        if (isset($resultado['error'])) {
+            return back()
+                ->withInput()
+                ->withErrors(['disponibilidad' => $resultado['error']]);
+        }
+
+        $reserva = $resultado['reserva'];
+        $mesas = $resultado['mesas'];
 
         // Confirmación por email con enlace para anular. Si el envío falla,
         // la reserva sigue siendo válida: solo lo dejamos anotado en el log.
@@ -159,6 +327,36 @@ class ReservaController extends Controller
                 'email' => $reserva->email,
                 'localizador' => $reserva->localizador,
             ]);
+    }
+
+    // Página pública para anular con el localizador (para quien no dio email
+    // o ya no encuentra el correo): localizador + teléfono de la reserva
+    public function buscarAnulacion()
+    {
+        return view('reservas.buscar-anulacion');
+    }
+
+    public function localizarAnulacion(Request $request)
+    {
+        $datos = $request->validate([
+            'localizador' => ['required', 'string', 'max:10'],
+            'telefono' => ['required', 'string', 'max:20'],
+        ]);
+
+        $reserva = Reserva::where('localizador', strtoupper(trim($datos['localizador'])))->first();
+
+        // El teléfono se compara solo por sus dígitos ("600 11 12 22" = "600111222")
+        $coincide = $reserva !== null
+            && preg_replace('/\D+/', '', $reserva->telefono) === preg_replace('/\D+/', '', $datos['telefono']);
+
+        if (! $coincide) {
+            return back()
+                ->withInput()
+                ->withErrors(['localizador' => 'No encontramos ninguna reserva con ese localizador y ese teléfono.']);
+        }
+
+        // Reutiliza la misma página segura de anulación que el enlace del email
+        return redirect()->to(URL::signedRoute('reservas.anular', ['reserva' => $reserva->id]));
     }
 
     // Página de anulación a la que llega el cliente desde el enlace
@@ -242,28 +440,30 @@ class ReservaController extends Controller
             return collect([$mesa]);
         }
 
-        // 2) Combinaciones de mesas contiguas con todas sus mesas libres,
-        //    en el comedor pedido y con capacidad total suficiente
+        // 2) Combinaciones de mesas con todas sus mesas libres y capacidad
+        //    suficiente. El comedor de la combinación lo marca su primera
+        //    mesa: las demás pueden ser auxiliares de otro comedor que se
+        //    mueven físicamente (como la "pared").
 
         return collect($combinaciones)
             ->map(fn (array $numeros) => Mesa::whereIn('numero', $numeros)
-                ->where('comedor', $comedor)
                 ->whereNotIn('id', $mesasOcupadas)
                 ->get())
             ->filter(fn (Collection $mesas, int $i) => $mesas->count() === count($combinaciones[$i]))
+            ->filter(fn (Collection $mesas, int $i) => $mesas->firstWhere('numero', $combinaciones[$i][0])?->comedor === $comedor)
             ->filter(fn (Collection $mesas) => $mesas->sum('capacidad') >= $personas)
             ->sortBy(fn (Collection $mesas) => $mesas->sum('capacidad'))
             ->first();
     }
 
-    // Horas reservables de cada turno según config/reservas.php,
-    // p. ej. ['comida' => ['13:00', '13:15', ...], 'cena' => [...]]
+    // Horas reservables de cada turno. Los horarios los edita el personal
+    // en /ajustes; config/reservas.php aporta los valores de fábrica.
     private function horasPorTurno(): array
     {
         $intervalo = config('reservas.intervalo_minutos');
         $turnos = [];
 
-        foreach (config('reservas.turnos') as $nombre => [$inicio, $fin]) {
+        foreach (Ajuste::valor('turnos', config('reservas.turnos')) as $nombre => [$inicio, $fin]) {
             $hora = Carbon::createFromTimeString($inicio);
             $final = Carbon::createFromTimeString($fin);
 

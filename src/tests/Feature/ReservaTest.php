@@ -118,11 +118,11 @@ class ReservaTest extends TestCase
             ->assertSessionHasErrors('personas');
     }
 
-    public function test_la_mesa_30_es_la_ultima_de_4_que_se_asigna_en_terraza(): void
+    public function test_las_mesas_de_combinaciones_son_las_ultimas_de_4_en_terraza(): void
     {
-        // Las 9 mesas de 4 de la terraza que no forman parte de ninguna
-        // combinación se asignan antes que la 30
-        $otras = [31, 32, 33, 34, 35, 36, 37, 38, 48];
+        // Las 7 mesas de 4 de la terraza que no forman parte de ninguna
+        // combinación se asignan antes que la 30 y la 31 (que sí combinan)
+        $otras = [32, 33, 34, 35, 36, 37, 38];
 
         foreach ($otras as $ignorada) {
             $this->reservar(['comedor' => 'terraza'])->assertSessionHas('exito');
@@ -134,9 +134,26 @@ class ReservaTest extends TestCase
 
         $this->assertEqualsCanonicalizing($otras, $asignadas);
 
-        // La décima reserva de 4 ya solo puede ir a la mesa 30
+        // Las dos siguientes ya solo pueden ser la 30 y la 31, en ese orden
         $this->reservar(['comedor' => 'terraza']);
         $this->assertSame([30], $this->mesasDeLaUltimaReserva());
+
+        $this->reservar(['comedor' => 'terraza']);
+        $this->assertSame([31], $this->mesasDeLaUltimaReserva());
+    }
+
+    public function test_grupo_de_15_en_terraza_junta_las_mesas_41_30_y_pared(): void
+    {
+        $this->reservar(['personas' => 15, 'comedor' => 'terraza'])->assertSessionHas('exito');
+
+        $this->assertSame([0, 30, 41], $this->mesasDeLaUltimaReserva());
+    }
+
+    public function test_grupo_de_18_en_terraza_junta_las_mesas_41_30_y_31(): void
+    {
+        $this->reservar(['personas' => 18, 'comedor' => 'terraza'])->assertSessionHas('exito');
+
+        $this->assertSame([30, 31, 41], $this->mesasDeLaUltimaReserva());
     }
 
     public function test_con_perro_no_se_puede_reservar_dentro(): void
@@ -183,6 +200,129 @@ class ReservaTest extends TestCase
 
         $this->assertSame(2, $codigos->unique()->count());
         $this->assertMatchesRegularExpression('/^[A-HJ-NP-Z2-9]{6}$/', $codigos->first());
+    }
+
+    public function test_el_mapa_de_mesas_exige_iniciar_sesion(): void
+    {
+        auth()->logout();
+
+        $this->get(route('reservas.mapa'))->assertRedirect(route('login'));
+    }
+
+    public function test_el_mapa_marca_las_mesas_ocupadas_en_su_franja(): void
+    {
+        $this->reservar(); // mañana 13:00, mesa 5, a nombre de "Prueba García"
+        $manana = now()->addDay()->toDateString();
+
+        $mapa = $this->actingAs($this->personal)
+            ->get(route('reservas.mapa', ['fecha' => $manana, 'hora' => '13:00']));
+
+        $mapa->assertOk()
+            ->assertSee('mesa-ocupada')
+            ->assertSee('Prueba García');
+
+        // Dos horas después la mesa vuelve a estar libre
+        $this->actingAs($this->personal)
+            ->get(route('reservas.mapa', ['fecha' => $manana, 'hora' => '15:00']))
+            ->assertOk()
+            ->assertDontSee('Prueba García');
+    }
+
+    public function test_si_el_torno_esta_ocupado_se_pide_reintentar_sin_crear_nada(): void
+    {
+        // Simula otra reserva en curso: el candado está cogido
+        $candado = \Illuminate\Support\Facades\Cache::lock('crear-reserva', 30);
+        $this->assertTrue($candado->get());
+
+        try {
+            $this->reservar()->assertSessionHasErrors('disponibilidad');
+            $this->assertSame(0, Reserva::count());
+        } finally {
+            $candado->release();
+        }
+
+        // Liberado el candado, la reserva entra con normalidad
+        $this->reservar()->assertSessionHas('exito');
+        $this->assertSame(1, Reserva::count());
+    }
+
+    public function test_nadie_puede_reservar_una_hora_que_ya_paso_ni_siquiera_el_personal(): void
+    {
+        // Son las 18:00 de hoy...
+        $this->travelTo(today()->setTime(18, 0));
+
+        // ...y el personal intenta reservar hoy a las 13:00
+        $this->reservar(['fecha' => today()->toDateString(), 'hora' => '13:00'])
+            ->assertSessionHasErrors('hora');
+        $this->assertSame(0, Reserva::count());
+
+        // Hoy a las 20:00 (aún futuro) sí puede
+        $this->reservar(['fecha' => today()->toDateString(), 'hora' => '20:00'])
+            ->assertSessionDoesntHaveErrors();
+        $this->assertSame(1, Reserva::count());
+    }
+
+    public function test_ocupar_una_mesa_sin_reserva_la_bloquea_para_la_web(): void
+    {
+        $manana = now()->addDay()->toDateString();
+        $mesa5 = \App\Models\Mesa::where('numero', 5)->first();
+
+        // El personal sienta a alguien sin reserva en la mesa 5
+        $this->actingAs($this->personal)->post(route('mesas.ocupar'), [
+            'mesa_id' => $mesa5->id,
+            'fecha' => $manana,
+            'hora' => '13:00',
+        ])->assertSessionHas('exito');
+
+        // La siguiente reserva de 4 ya no puede recibir la mesa 5
+        $this->reservar();
+        $this->assertSame([6], $this->mesasDeLaUltimaReserva());
+
+        // Y el mapa la muestra como "Sin reserva" con su botón de liberar
+        $this->actingAs($this->personal)
+            ->get(route('reservas.mapa', ['fecha' => $manana, 'hora' => '13:00']))
+            ->assertSee('Sin reserva')
+            ->assertSee('Liberar');
+    }
+
+    public function test_liberar_una_mesa_la_devuelve_al_circuito(): void
+    {
+        $manana = now()->addDay()->toDateString();
+        $mesa5 = \App\Models\Mesa::where('numero', 5)->first();
+
+        $this->actingAs($this->personal)->post(route('mesas.ocupar'), [
+            'mesa_id' => $mesa5->id,
+            'fecha' => $manana,
+            'hora' => '13:00',
+        ]);
+
+        $ocupacion = Reserva::where('sin_reserva', true)->first();
+        $this->actingAs($this->personal)->post(route('mesas.liberar', $ocupacion))
+            ->assertSessionHas('exito');
+
+        $this->reservar();
+        $this->assertSame([5], $this->mesasDeLaUltimaReserva());
+    }
+
+    public function test_ocupar_una_mesa_ya_ocupada_avisa_sin_duplicar(): void
+    {
+        $manana = now()->addDay()->toDateString();
+        $mesa5 = \App\Models\Mesa::where('numero', 5)->first();
+
+        $datos = ['mesa_id' => $mesa5->id, 'fecha' => $manana, 'hora' => '13:00'];
+
+        $this->actingAs($this->personal)->post(route('mesas.ocupar'), $datos);
+        $this->actingAs($this->personal)->post(route('mesas.ocupar'), $datos)
+            ->assertSessionHasErrors('mapa');
+
+        $this->assertSame(1, Reserva::count());
+    }
+
+    public function test_ocupar_y_liberar_mesas_exige_iniciar_sesion(): void
+    {
+        auth()->logout();
+
+        $this->post(route('mesas.ocupar'), [])->assertRedirect(route('login'));
     }
 
     public function test_anular_reserva_libera_sus_mesas(): void

@@ -19,7 +19,9 @@ class MesasSeeder extends Seeder
             ['numero' => 4, 'capacidad' => 2, 'comedor' => 'dentro'],
             ['numero' => 9, 'capacidad' => 2, 'comedor' => 'dentro'],
             ['numero' => 14, 'capacidad' => 2, 'comedor' => 'dentro'],
-            ['numero' => 0, 'capacidad' => 2, 'comedor' => 'dentro'], // mesa "pared" o especial
+            // Mesa auxiliar "pared": vive dentro, pero se mueve físicamente
+            // (p. ej. a la terraza para las combinaciones de grupos grandes)
+            ['numero' => 0, 'capacidad' => 2, 'comedor' => 'dentro'],
 
             // Capacidad 4
             ['numero' => 5, 'capacidad' => 4, 'comedor' => 'dentro'],
@@ -27,13 +29,13 @@ class MesasSeeder extends Seeder
             ['numero' => 7, 'capacidad' => 4, 'comedor' => 'dentro'],
             ['numero' => 8, 'capacidad' => 4, 'comedor' => 'dentro'],
             ['numero' => 10, 'capacidad' => 4, 'comedor' => 'dentro'],
+            ['numero' => 11, 'capacidad' => 4, 'comedor' => 'dentro'],
             ['numero' => 12, 'capacidad' => 4, 'comedor' => 'dentro'],
             ['numero' => 13, 'capacidad' => 4, 'comedor' => 'dentro'],
             ['numero' => 15, 'capacidad' => 4, 'comedor' => 'dentro'],
             ['numero' => 16, 'capacidad' => 4, 'comedor' => 'dentro'],
 
             // Capacidad 5
-            ['numero' => 11, 'capacidad' => 5, 'comedor' => 'dentro'],
             ['numero' => 17, 'capacidad' => 5, 'comedor' => 'dentro'],
             ['numero' => 19, 'capacidad' => 5, 'comedor' => 'dentro'],
 
@@ -63,7 +65,6 @@ class MesasSeeder extends Seeder
             ['numero' => 36, 'capacidad' => 4, 'comedor' => 'terraza'],
             ['numero' => 37, 'capacidad' => 4, 'comedor' => 'terraza'],
             ['numero' => 38, 'capacidad' => 4, 'comedor' => 'terraza'],
-            ['numero' => 48, 'capacidad' => 4, 'comedor' => 'terraza'],
 
             // Capacidad 10
             ['numero' => 41, 'capacidad' => 10, 'comedor' => 'terraza'],
@@ -72,6 +73,7 @@ class MesasSeeder extends Seeder
 
             // Capacidad 7
             ['numero' => 44, 'capacidad' => 7, 'comedor' => 'terraza'],
+            ['numero' => 48, 'capacidad' => 7, 'comedor' => 'terraza'],
             ['numero' => 45, 'capacidad' => 7, 'comedor' => 'terraza'],
             ['numero' => 46, 'capacidad' => 7, 'comedor' => 'terraza'],
             ['numero' => 47, 'capacidad' => 7, 'comedor' => 'terraza'],

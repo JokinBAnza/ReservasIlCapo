@@ -16,7 +16,7 @@ class AuthController extends Controller
     public function entrar(Request $request)
     {
         $credenciales = $request->validate([
-            'email' => ['required', 'email'],
+            'usuario' => ['required', 'string'],
             'password' => ['required'],
         ]);
 
@@ -27,17 +27,12 @@ class AuthController extends Controller
         }
 
         return back()
-            ->withErrors(['email' => 'Correo o contraseña incorrectos.'])
-            ->onlyInput('email');
+            ->withErrors(['usuario' => 'Usuario o contraseña incorrectos.'])
+            ->onlyInput('usuario');
     }
 
-    // Cambio de contraseña del personal, desde la propia web
+    // Cambio de contraseña del personal, desde la página de Ajustes
     // (en el hosting no habrá terminal para hacerlo de otra forma)
-    public function editarContrasena()
-    {
-        return view('auth.cambiar-contrasena');
-    }
-
     public function actualizarContrasena(Request $request)
     {
         $request->validate([
@@ -52,7 +47,7 @@ class AuthController extends Controller
         $request->user()->update(['password' => $request->nueva]);
 
         return redirect()
-            ->route('reservas.index')
+            ->route('ajustes.editar')
             ->with('exito', 'Contraseña cambiada correctamente.');
     }
 

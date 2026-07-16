@@ -13,7 +13,7 @@
         </p>
 
         @if (! empty($datos['localizador']))
-            <p style="background: #f5f2ed; border-radius: 8px; padding: .75rem 1rem; margin-bottom: 1.25rem;">
+            <p style="background: #FFF6EA; border-radius: 12px; padding: .75rem 1rem; margin-bottom: 1.25rem;">
                 Tu localizador es
                 <strong style="font-family: monospace; font-size: 1.2rem; letter-spacing: .1em;">{{ $datos['localizador'] }}</strong><br>
                 <span style="color: #737373; font-size: .85rem;">Guárdalo: te lo podemos pedir al llegar o si nos llamas.</span>
@@ -27,7 +27,9 @@
             </p>
         @else
             <p style="color: #737373; font-size: .9rem; margin-bottom: 1.5rem;">
-                Si no puedes venir, llámanos para anular la reserva, por favor. ¡Gracias!
+                Si no puedes venir, puedes
+                <a href="{{ route('reservas.buscar-anulacion') }}">anular la reserva aquí</a>
+                con tu localizador y tu teléfono. ¡Gracias!
             </p>
         @endif
 

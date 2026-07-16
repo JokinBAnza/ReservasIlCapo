@@ -16,11 +16,13 @@ class Reserva extends Model
         'email',
         'personas',
         'perro',
+        'sin_reserva',
         'fecha_hora',
     ];
 
     protected $casts = [
         'perro' => 'boolean',
+        'sin_reserva' => 'boolean',
         'fecha_hora' => 'datetime',
     ];
 

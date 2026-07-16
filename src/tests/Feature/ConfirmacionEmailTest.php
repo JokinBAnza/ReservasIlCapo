@@ -101,6 +101,65 @@ class ConfirmacionEmailTest extends TestCase
             ->assertSee(Reserva::first()->localizador);
     }
 
+    public function test_un_doble_envio_no_crea_reservas_duplicadas(): void
+    {
+        $this->reservarPublico()->assertSessionDoesntHaveErrors();
+
+        // Segundo envío idéntico (doble clic): rechazado sin crear nada
+        $this->reservarPublico()->assertSessionHasErrors('disponibilidad');
+        $this->assertSame(1, Reserva::count());
+    }
+
+    public function test_el_cliente_puede_anular_con_localizador_y_telefono(): void
+    {
+        $this->reservarPublico();
+        $reserva = Reserva::first();
+
+        // El localizador en minúsculas y el teléfono con espacios también valen
+        $respuesta = $this->post('/anular-reserva', [
+            'localizador' => strtolower($reserva->localizador),
+            'telefono' => '600 00 00 00',
+        ]);
+
+        $respuesta->assertRedirect();
+        $destino = $respuesta->headers->get('Location');
+
+        $this->get($destino)->assertOk()->assertSee('Anular tu reserva');
+
+        $this->post($destino);
+        $this->assertSame(0, Reserva::count());
+    }
+
+    public function test_un_localizador_incorrecto_no_encuentra_reserva(): void
+    {
+        $this->reservarPublico();
+
+        $this->post('/anular-reserva', [
+            'localizador' => 'XXXXXX',
+            'telefono' => '600000000',
+        ])->assertSessionHasErrors('localizador');
+
+        $this->assertSame(1, Reserva::count());
+    }
+
+    public function test_el_localizador_con_telefono_ajeno_no_encuentra_reserva(): void
+    {
+        $this->reservarPublico();
+        $reserva = Reserva::first();
+
+        $this->post('/anular-reserva', [
+            'localizador' => $reserva->localizador,
+            'telefono' => '699999999',
+        ])->assertSessionHasErrors('localizador');
+
+        $this->assertSame(1, Reserva::count());
+    }
+
+    public function test_la_pagina_de_anular_reserva_es_publica(): void
+    {
+        $this->get('/anular-reserva')->assertOk()->assertSee('Localizador');
+    }
+
     public function test_un_bot_que_rellena_el_campo_oculto_no_crea_reserva(): void
     {
         $this->reservarPublico(['fax' => 'spam'])

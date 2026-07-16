@@ -13,6 +13,7 @@
         @if ($reservas->isEmpty())
             <p class="sin-datos">No hay reservas para el {{ $fecha->format('d/m/Y') }}.</p>
         @else
+            <div class="tabla-scroll">
             <table>
                 <thead>
                     <tr>
@@ -52,6 +53,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
             <p style="margin-top: 1rem; color: #737373; font-size: .9rem;">
                 {{ $reservas->count() }} {{ Str::plural('reserva', $reservas->count()) }} ·
                 {{ $reservas->sum('personas') }} comensales

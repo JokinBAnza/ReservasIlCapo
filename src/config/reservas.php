@@ -5,6 +5,11 @@ return [
     // Horas que una reserva bloquea la mesa, antes y después de la hora reservada.
     'duracion_horas' => 2,
 
+    // Antelación mínima (en minutos) para reservar desde la web pública.
+    // Evita reservas online de última hora mientras se sienta a gente
+    // que llega sin reserva. El personal logueado no tiene este límite.
+    'antelacion_minima_minutos' => 60,
+
     // Máximo de reservas futuras que puede tener un mismo teléfono a la vez
     // desde la web pública (el personal no tiene límite). Frena el abuso.
     'maximo_reservas_por_telefono' => 2,
@@ -27,12 +32,16 @@ return [
     | Combinaciones de mesas contiguas
     |--------------------------------------------------------------------------
     | Grupos de mesas (por su número) que se pueden juntar para grupos grandes.
-    | Todas las mesas de una combinación deben estar en el mismo comedor.
+    | El comedor de la combinación es el de su PRIMERA mesa; las demás pueden
+    | ser auxiliares de otro comedor que se mueven físicamente (p. ej. la
+    | "pared", mesa 0, que vive dentro pero se saca a la terraza).
     | Para añadir una combinación nueva, añade una línea: [numero, numero, ...]
     */
     'combinaciones' => [
-        [41, 30], // terraza, 10 + 4  = 14 personas
-        [41, 42], // terraza, 10 + 10 = 20 personas
+        [41, 30],     // terraza, 10 + 4     = 14 personas
+        [41, 30, 0],  // terraza, 10 + 4 + 2 = 16 personas (la 0, "pared", se mueve desde dentro)
+        [41, 30, 31], // terraza, 10 + 4 + 4 = 18 personas
+        [41, 42],     // terraza, 10 + 10    = 20 personas
     ],
 
 ];

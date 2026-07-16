@@ -10,22 +10,22 @@
             <div class="fila">
                 <div class="campo">
                     <label for="nombre">Nombre</label>
-                    <input type="text" id="nombre" name="nombre" value="{{ old('nombre') }}" required maxlength="100" placeholder="Nombre">
+                    <input type="text" id="nombre" name="nombre" value="{{ old('nombre') }}" required maxlength="100" placeholder="Nombre" autocomplete="given-name">
                 </div>
                 <div class="campo">
                     <label for="apellidos">Apellidos</label>
-                    <input type="text" id="apellidos" name="apellidos" value="{{ old('apellidos') }}" required maxlength="100" placeholder="Apellidos">
+                    <input type="text" id="apellidos" name="apellidos" value="{{ old('apellidos') }}" required maxlength="100" placeholder="Apellidos" autocomplete="family-name">
                 </div>
             </div>
 
             <div class="fila">
                 <div class="campo">
                     <label for="telefono">Teléfono</label>
-                    <input type="tel" id="telefono" name="telefono" value="{{ old('telefono') }}" required maxlength="20" placeholder="600 000 000">
+                    <input type="tel" id="telefono" name="telefono" value="{{ old('telefono') }}" required maxlength="20" placeholder="600 000 000" autocomplete="tel">
                 </div>
                 <div class="campo">
                     <label for="email">Email <span style="font-weight: 400; color: #737373;">(opcional)</span></label>
-                    <input type="email" id="email" name="email" value="{{ old('email') }}" maxlength="255" placeholder="Para enviarte la confirmación">
+                    <input type="email" id="email" name="email" value="{{ old('email') }}" maxlength="255" placeholder="Para enviarte la confirmación" autocomplete="email">
                 </div>
             </div>
 
@@ -38,7 +38,7 @@
             <div class="fila">
                 <div class="campo">
                     <label for="fecha">Fecha</label>
-                    <input type="date" id="fecha" name="fecha" value="{{ old('fecha', today()->toDateString()) }}" min="{{ today()->toDateString() }}" required>
+                    <input type="date" id="fecha" name="fecha" value="{{ old('fecha', $corte['fecha']) }}" min="{{ $corte['fecha'] }}" required>
                 </div>
                 <div class="campo">
                     <label for="turno">Turno</label>
@@ -81,24 +81,49 @@
     </div>
 
     <script>
-        // Turno -> horas disponibles
+        // Turno -> horas disponibles, sin ofrecer horas ya pasadas o fuera
+        // de plazo. "corte" es el primer momento reservable ahora mismo.
         const horasPorTurno = @json($horasPorTurno);
+        const corte = @json($corte);
+        const fechaInput = document.getElementById('fecha');
         const turno = document.getElementById('turno');
         const hora = document.getElementById('hora');
         const horaPrevia = @json(old('hora'));
 
+        function horasValidas(nombreTurno) {
+            const fecha = fechaInput.value;
+            let horas = horasPorTurno[nombreTurno] ?? [];
+            if (!fecha || fecha < corte.fecha) return [];
+            if (fecha === corte.fecha) horas = horas.filter(h => h > corte.hora);
+            return horas;
+        }
+
         function rellenarHoras() {
+            const horas = horasValidas(turno.value);
             hora.innerHTML = '';
-            const vacia = new Option('Elegir hora', '');
+            const vacia = new Option(horas.length ? 'Elegir hora' : 'No quedan horas ese día', '');
             vacia.disabled = true;
             vacia.selected = true;
             hora.appendChild(vacia);
 
-            for (const h of horasPorTurno[turno.value] ?? []) {
+            for (const h of horas) {
                 const opcion = new Option(h, h);
                 opcion.selected = (h === horaPrevia);
                 hora.appendChild(opcion);
             }
+        }
+
+        // Deshabilita los turnos que ya no llegan en la fecha elegida (p. ej.
+        // "Comida" pasadas las 16:00 de hoy) y salta al primero disponible
+        function ajustarTurnos() {
+            for (const opcion of turno.options) {
+                opcion.disabled = horasValidas(opcion.value).length === 0;
+            }
+            if (turno.selectedOptions[0] && turno.selectedOptions[0].disabled) {
+                const libre = [...turno.options].find(o => !o.disabled);
+                if (libre) turno.value = libre.value;
+            }
+            rellenarHoras();
         }
 
         // Si venimos de un error de validación, recuperar el turno y la hora elegidos
@@ -110,8 +135,9 @@
             }
         }
 
+        fechaInput.addEventListener('change', ajustarTurnos);
         turno.addEventListener('change', rellenarHoras);
-        rellenarHoras();
+        ajustarTurnos();
 
         const perro = document.getElementById('perro');
         const comedor = document.getElementById('comedor');

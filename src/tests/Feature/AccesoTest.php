@@ -61,10 +61,10 @@ class AccesoTest extends TestCase
 
     public function test_el_personal_puede_entrar_y_salir(): void
     {
-        $personal = User::factory()->create(['password' => 'secreta-123']);
+        $personal = User::factory()->create(['usuario' => 'personal', 'password' => 'secreta-123']);
 
         $this->post(route('login'), [
-            'email' => $personal->email,
+            'usuario' => 'personal',
             'password' => 'secreta-123',
         ])->assertRedirect(route('reservas.index'));
 
@@ -76,43 +76,43 @@ class AccesoTest extends TestCase
 
     public function test_con_contrasena_incorrecta_no_se_entra(): void
     {
-        $personal = User::factory()->create(['password' => 'secreta-123']);
+        User::factory()->create(['usuario' => 'personal', 'password' => 'secreta-123']);
 
         $this->post(route('login'), [
-            'email' => $personal->email,
+            'usuario' => 'personal',
             'password' => 'equivocada',
-        ])->assertSessionHasErrors('email');
+        ])->assertSessionHasErrors('usuario');
 
         $this->assertGuest();
     }
 
     public function test_el_login_se_bloquea_tras_demasiados_intentos(): void
     {
-        $personal = User::factory()->create(['password' => 'secreta-123']);
+        User::factory()->create(['usuario' => 'personal', 'password' => 'secreta-123']);
 
         foreach (range(1, 5) as $ignorado) {
-            $this->post(route('login'), ['email' => $personal->email, 'password' => 'mal']);
+            $this->post(route('login'), ['usuario' => 'personal', 'password' => 'mal']);
         }
 
         // El sexto intento en el mismo minuto recibe un 429 (demasiadas peticiones)
-        $this->post(route('login'), ['email' => $personal->email, 'password' => 'secreta-123'])
+        $this->post(route('login'), ['usuario' => 'personal', 'password' => 'secreta-123'])
             ->assertStatus(429);
     }
 
     public function test_el_personal_puede_cambiar_su_contrasena(): void
     {
-        $personal = User::factory()->create(['password' => 'antigua-123']);
+        $personal = User::factory()->create(['usuario' => 'personal', 'password' => 'antigua-123']);
 
         $this->actingAs($personal)->post(route('password.edit'), [
             'actual' => 'antigua-123',
             'nueva' => 'nueva-segura-456',
             'nueva_confirmation' => 'nueva-segura-456',
-        ])->assertRedirect(route('reservas.index'));
+        ])->assertRedirect(route('ajustes.editar'));
 
         $this->post(route('logout'));
 
         $this->post(route('login'), [
-            'email' => $personal->email,
+            'usuario' => 'personal',
             'password' => 'nueva-segura-456',
         ]);
         $this->assertAuthenticatedAs($personal);
@@ -131,6 +131,10 @@ class AccesoTest extends TestCase
 
     public function test_cambiar_la_contrasena_exige_estar_dentro(): void
     {
-        $this->get(route('password.edit'))->assertRedirect(route('login'));
+        $this->post(route('password.edit'), [
+            'actual' => 'x',
+            'nueva' => 'nueva-segura-456',
+            'nueva_confirmation' => 'nueva-segura-456',
+        ])->assertRedirect(route('login'));
     }
 }

@@ -8,8 +8,8 @@
             @csrf
 
             <div class="campo">
-                <label for="email">Correo</label>
-                <input type="email" id="email" name="email" value="{{ old('email') }}" required autofocus>
+                <label for="usuario">Usuario</label>
+                <input type="text" id="usuario" name="usuario" value="{{ old('usuario') }}" required autofocus autocomplete="username">
             </div>
 
             <div class="campo">
