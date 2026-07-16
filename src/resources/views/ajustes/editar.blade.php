@@ -141,6 +141,35 @@
     </div>
 
     <div class="tarjeta" style="margin-top: 1.5rem;">
+        <h2 style="margin-bottom: .5rem;">Capacidad de las mesas</h2>
+        <p style="color: #737373; font-size: .9rem; margin-bottom: 1rem;">
+            Los cambios valen para las reservas nuevas; las ya asignadas no se recolocan.
+            Los máximos de los grupos grandes (mesas combinadas) se recalculan solos.
+        </p>
+
+        <form method="POST" action="{{ route('ajustes.mesas') }}">
+            @csrf
+
+            @foreach (['dentro' => 'Comedor de dentro', 'terraza' => 'Terraza'] as $comedor => $titulo)
+                <h3 style="font-weight: 600; font-size: .95rem;">{{ $titulo }}</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: .6rem; margin: .6rem 0 1.25rem;">
+                    @foreach ($mesas[$comedor] ?? [] as $mesa)
+                        <label style="width: 88px; margin: 0; text-align: center; font-weight: 400;">
+                            <span style="display: block; font-weight: 600; font-size: .78rem; margin-bottom: .25rem;">
+                                {{ $mesa->numero === 0 ? 'Pared' : 'Mesa '.$mesa->numero }}
+                            </span>
+                            <input type="number" name="capacidades[{{ $mesa->id }}]" value="{{ $mesa->capacidad }}"
+                                   min="1" max="20" required style="text-align: center;">
+                        </label>
+                    @endforeach
+                </div>
+            @endforeach
+
+            <button type="submit" class="boton">Guardar capacidades</button>
+        </form>
+    </div>
+
+    <div class="tarjeta" style="margin-top: 1.5rem;">
         <h2 style="margin-bottom: 1.25rem;">Cambiar contraseña</h2>
 
         <form method="POST" action="{{ route('password.edit') }}" style="max-width: 380px;">

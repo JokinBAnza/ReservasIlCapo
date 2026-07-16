@@ -37,6 +37,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/ajustes', [AjusteController::class, 'guardar']);
     Route::post('/ajustes/cerrar-fecha', [AjusteController::class, 'cerrarFecha'])->name('ajustes.cerrar');
     Route::post('/ajustes/abrir-fecha', [AjusteController::class, 'abrirFecha'])->name('ajustes.abrir');
+    Route::post('/ajustes/mesas', [AjusteController::class, 'guardarMesas'])->name('ajustes.mesas');
     Route::post('/ajustes/cerrar-rango', [AjusteController::class, 'cerrarRango'])->name('ajustes.cerrar-rango');
     Route::post('/ajustes/abrir-rango', [AjusteController::class, 'abrirRango'])->name('ajustes.abrir-rango');
 });

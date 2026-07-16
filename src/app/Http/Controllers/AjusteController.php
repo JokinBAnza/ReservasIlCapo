@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ajuste;
+use App\Models\Mesa;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -34,7 +35,28 @@ class AjusteController extends Controller
                 ->values(),
             'limitePorHora' => Ajuste::valor('maximo_reservas_por_hora', config('reservas.maximo_reservas_por_hora')),
             'antelacion' => Ajuste::valor('antelacion_minima_minutos', config('reservas.antelacion_minima_minutos')),
+            'mesas' => Mesa::orderBy('numero')->get()->groupBy('comedor'),
         ]);
+    }
+
+    // Capacidad de cada mesa, editable sin tocar la base de datos a mano
+    public function guardarMesas(Request $request)
+    {
+        $datos = $request->validate([
+            'capacidades' => ['required', 'array'],
+            'capacidades.*' => ['required', 'integer', 'min:1', 'max:20'],
+        ], [
+            'capacidades.*.required' => 'A alguna mesa le falta la capacidad.',
+            'capacidades.*.integer' => 'Las capacidades deben ser números enteros.',
+            'capacidades.*.min' => 'Ninguna mesa puede tener capacidad menor que 1.',
+            'capacidades.*.max' => 'Ninguna mesa puede tener capacidad mayor que 20.',
+        ]);
+
+        foreach ($datos['capacidades'] as $mesaId => $capacidad) {
+            Mesa::where('id', $mesaId)->update(['capacidad' => (int) $capacidad]);
+        }
+
+        return back()->with('exito', 'Capacidades de las mesas guardadas.');
     }
 
     public function guardar(Request $request)

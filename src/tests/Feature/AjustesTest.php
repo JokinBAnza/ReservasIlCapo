@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Ajuste;
+use App\Models\Mesa;
 use App\Models\Reserva;
 use App\Models\User;
 use Carbon\Carbon;
@@ -211,6 +212,38 @@ class AjustesTest extends TestCase
         ])->assertSessionDoesntHaveErrors();
 
         $this->assertSame(1, Reserva::count());
+    }
+
+    public function test_el_personal_puede_editar_la_capacidad_de_una_mesa(): void
+    {
+        $mesa5 = Mesa::where('numero', 5)->first();
+
+        $this->actingAs($this->personal)->post('/ajustes/mesas', [
+            'capacidades' => [$mesa5->id => 2],
+        ])->assertSessionHas('exito');
+
+        $this->assertSame(2, $mesa5->fresh()->capacidad);
+        auth()->logout();
+
+        // Una reserva de 4 ya no puede recibir la mesa 5: pasa a la 6
+        $this->reservarPublico(now()->addDay()->toDateString(), ['personas' => 4]);
+        $this->assertSame([6], Reserva::first()->mesas->pluck('numero')->all());
+    }
+
+    public function test_una_capacidad_invalida_se_rechaza_sin_guardar(): void
+    {
+        $mesa5 = Mesa::where('numero', 5)->first();
+
+        $this->actingAs($this->personal)->post('/ajustes/mesas', [
+            'capacidades' => [$mesa5->id => 0],
+        ])->assertSessionHasErrors();
+
+        $this->assertSame(4, $mesa5->fresh()->capacidad);
+    }
+
+    public function test_editar_mesas_exige_iniciar_sesion(): void
+    {
+        $this->post('/ajustes/mesas', [])->assertRedirect(route('login'));
     }
 
     public function test_no_se_pueden_cerrar_todos_los_dias(): void
