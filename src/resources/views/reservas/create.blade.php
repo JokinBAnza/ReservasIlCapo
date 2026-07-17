@@ -77,6 +77,12 @@
             </div>
 
             <button type="submit" class="boton">Reservar mesa</button>
+
+            <p style="color: #999999; font-size: .78rem; margin-top: 1rem;">
+                Al reservar aceptas que EGOLIFE, S.L. (Il Capo) use estos datos únicamente
+                para gestionar tu reserva. Más información en la
+                <a href="{{ route('privacidad') }}">política de privacidad</a>.
+            </p>
         </form>
     </div>
 

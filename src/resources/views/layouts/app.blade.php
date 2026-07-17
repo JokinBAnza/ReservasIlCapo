@@ -107,6 +107,9 @@
 
         @yield('contenido')
     </main>
+    <footer style="text-align: center; padding: 1.5rem 1rem 2rem; font-size: .8rem; color: #999999;">
+        Il Capo · <a href="{{ route('privacidad') }}">Política de privacidad</a>
+    </footer>
     <script>
         // Evita dobles envíos por doble clic (crearían reservas duplicadas)
         document.addEventListener('submit', function (evento) {

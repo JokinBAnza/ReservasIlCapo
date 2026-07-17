@@ -5,6 +5,10 @@ return [
     // Horas que una reserva bloquea la mesa, antes y después de la hora reservada.
     'duracion_horas' => 2,
 
+    // Meses que se conservan las reservas pasadas antes de borrarse solas
+    // (protección de datos: no acumular datos personales sin necesidad).
+    'meses_conservacion' => 12,
+
     // Antelación mínima (en minutos) para reservar desde la web pública.
     // Evita reservas online de última hora mientras se sienta a gente
     // que llega sin reserva. El personal logueado no tiene este límite.

@@ -20,6 +20,8 @@ Route::middleware('signed')->group(function () {
     Route::post('/reservas/anular/{reserva}', [ReservaController::class, 'confirmarAnulacion']);
 });
 
+Route::view('/privacidad', 'privacidad')->name('privacidad');
+
 // Acceso del personal (con freno de intentos contra fuerza bruta)
 Route::get('/entrar', [AuthController::class, 'mostrar'])->name('login');
 Route::post('/entrar', [AuthController::class, 'entrar'])->middleware('throttle:5,1');

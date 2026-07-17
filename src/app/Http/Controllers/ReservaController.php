@@ -22,6 +22,11 @@ class ReservaController extends Controller
     // Listado de reservas de un día (hoy por defecto)
     public function index(Request $request)
     {
+        // Protección de datos: las reservas antiguas se borran solas. Se hace
+        // aquí (cada vez que el personal abre el listado) porque en el hosting
+        // compartido no hay tareas programadas garantizadas.
+        Reserva::where('fecha_hora', '<', now()->subMonths(config('reservas.meses_conservacion')))->delete();
+
         $fecha = $request->date('fecha') ?? today();
 
         $reservas = Reserva::with('mesas')
