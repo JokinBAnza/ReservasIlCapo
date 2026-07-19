@@ -362,6 +362,32 @@ class ReservaTest extends TestCase
             ->assertSeeInOrder(['Ana', 'Zacarias', 'Alberto']);
     }
 
+    public function test_el_buscador_encuentra_por_localizador_nombre_o_telefono(): void
+    {
+        $this->reservar(); // mañana 13:00, Prueba García, 600000000
+        $reserva = Reserva::first();
+
+        // Por localizador (incluso en minúsculas)
+        $this->actingAs($this->personal)
+            ->get(route('reservas.index', ['buscar' => strtolower($reserva->localizador)]))
+            ->assertSee('Prueba García');
+
+        // Por apellidos
+        $this->actingAs($this->personal)
+            ->get(route('reservas.index', ['buscar' => 'García']))
+            ->assertSee($reserva->localizador);
+
+        // Por teléfono
+        $this->actingAs($this->personal)
+            ->get(route('reservas.index', ['buscar' => '600000000']))
+            ->assertSee('Prueba García');
+
+        // Sin coincidencias
+        $this->actingAs($this->personal)
+            ->get(route('reservas.index', ['buscar' => 'ZZZZ99']))
+            ->assertSee('Sin resultados');
+    }
+
     public function test_anular_reserva_libera_sus_mesas(): void
     {
         $this->reservar(['personas' => 20, 'comedor' => 'terraza']);

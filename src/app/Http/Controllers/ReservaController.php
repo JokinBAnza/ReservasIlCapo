@@ -28,17 +28,34 @@ class ReservaController extends Controller
         Reserva::where('fecha_hora', '<', now()->subMonths(config('reservas.meses_conservacion')))->delete();
 
         $fecha = $request->date('fecha') ?? today();
+        $busqueda = trim((string) $request->query('buscar', ''));
 
-        $reservas = Reserva::with('mesas')
-            ->whereDate('fecha_hora', $fecha)
-            ->orderBy('fecha_hora')
-            ->orderBy('nombre')   // a igual hora, alfabético
-            ->orderBy('apellidos')
-            ->get();
+        if ($busqueda !== '') {
+            // Búsqueda en todas las fechas: localizador exacto (da igual
+            // mayúsculas) o coincidencia en nombre, apellidos o teléfono
+            $reservas = Reserva::with('mesas')
+                ->where(function ($consulta) use ($busqueda) {
+                    $consulta->where('localizador', strtoupper($busqueda))
+                        ->orWhere('nombre', 'like', "%{$busqueda}%")
+                        ->orWhere('apellidos', 'like', "%{$busqueda}%")
+                        ->orWhere('telefono', 'like', "%{$busqueda}%");
+                })
+                ->orderBy('fecha_hora')
+                ->limit(50)
+                ->get();
+        } else {
+            $reservas = Reserva::with('mesas')
+                ->whereDate('fecha_hora', $fecha)
+                ->orderBy('fecha_hora')
+                ->orderBy('nombre')   // a igual hora, alfabético
+                ->orderBy('apellidos')
+                ->get();
+        }
 
         return view('reservas.index', [
             'reservas' => $reservas,
             'fecha' => $fecha,
+            'busqueda' => $busqueda,
         ]);
     }
 
