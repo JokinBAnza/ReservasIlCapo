@@ -32,6 +32,8 @@ class ReservaController extends Controller
         $reservas = Reserva::with('mesas')
             ->whereDate('fecha_hora', $fecha)
             ->orderBy('fecha_hora')
+            ->orderBy('nombre')   // a igual hora, alfabético
+            ->orderBy('apellidos')
             ->get();
 
         return view('reservas.index', [

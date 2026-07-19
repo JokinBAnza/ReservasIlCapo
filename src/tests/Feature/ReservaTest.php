@@ -348,6 +348,20 @@ class ReservaTest extends TestCase
         $this->post(route('mesas.ocupar'), [])->assertRedirect(route('login'));
     }
 
+    public function test_el_listado_ordena_por_hora_y_despues_alfabeticamente(): void
+    {
+        $manana = now()->addDay()->toDateString();
+
+        $this->reservar(['nombre' => 'Zacarias', 'hora' => '13:00']);
+        $this->reservar(['nombre' => 'Ana', 'hora' => '13:00', 'telefono' => '611111111']);
+        $this->reservar(['nombre' => 'Alberto', 'hora' => '14:00', 'telefono' => '622222222']);
+
+        // Misma hora: Ana antes que Zacarias; hora posterior al final aunque empiece por A
+        $this->actingAs($this->personal)
+            ->get(route('reservas.index', ['fecha' => $manana]))
+            ->assertSeeInOrder(['Ana', 'Zacarias', 'Alberto']);
+    }
+
     public function test_anular_reserva_libera_sus_mesas(): void
     {
         $this->reservar(['personas' => 20, 'comedor' => 'terraza']);
