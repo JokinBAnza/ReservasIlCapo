@@ -174,8 +174,8 @@ class ReservaController extends Controller
         $maxPersonas = $this->maxPersonas();
 
         $datos = $request->validate([
-            'nombre' => ['required', 'string', 'max:100'],
-            'apellidos' => ['required', 'string', 'max:100'],
+            'nombre' => ['required', 'string', 'max:30'],
+            'apellidos' => ['required', 'string', 'max:30'],
             'telefono' => [
                 'required', 'string', 'max:20',
                 // Solo cifras, espacios, +, guiones, puntos y paréntesis

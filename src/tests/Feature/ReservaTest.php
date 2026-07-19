@@ -214,6 +214,17 @@ class ReservaTest extends TestCase
         $this->assertSame(0, Reserva::count());
     }
 
+    public function test_nombre_y_apellidos_no_pueden_pasar_de_30_caracteres(): void
+    {
+        $largo = str_repeat('a', 31);
+
+        $this->reservar(['nombre' => $largo])->assertSessionHasErrors('nombre');
+        $this->reservar(['apellidos' => $largo])->assertSessionHasErrors('apellidos');
+        $this->assertSame(0, Reserva::count());
+
+        $this->reservar(['nombre' => str_repeat('a', 30)])->assertSessionDoesntHaveErrors();
+    }
+
     public function test_cada_reserva_recibe_un_localizador_unico(): void
     {
         $this->reservar();

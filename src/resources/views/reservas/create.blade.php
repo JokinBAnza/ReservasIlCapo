@@ -10,11 +10,11 @@
             <div class="fila">
                 <div class="campo">
                     <label for="nombre">Nombre</label>
-                    <input type="text" id="nombre" name="nombre" value="{{ old('nombre') }}" required maxlength="100" placeholder="Nombre" autocomplete="given-name">
+                    <input type="text" id="nombre" name="nombre" value="{{ old('nombre') }}" required maxlength="30" placeholder="Nombre" autocomplete="given-name">
                 </div>
                 <div class="campo">
                     <label for="apellidos">Apellidos</label>
-                    <input type="text" id="apellidos" name="apellidos" value="{{ old('apellidos') }}" required maxlength="100" placeholder="Apellidos" autocomplete="family-name">
+                    <input type="text" id="apellidos" name="apellidos" value="{{ old('apellidos') }}" required maxlength="30" placeholder="Apellidos" autocomplete="family-name">
                 </div>
             </div>
 
