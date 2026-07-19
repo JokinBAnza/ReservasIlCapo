@@ -189,6 +189,25 @@ class ReservaTest extends TestCase
         $this->reservar(['personas' => 2, 'hora' => '13:15'])->assertSessionHas('exito');
     }
 
+    public function test_el_telefono_debe_ser_un_numero_real(): void
+    {
+        // Con letras: no
+        $this->reservar(['telefono' => 'hola que tal'])->assertSessionHasErrors('telefono');
+
+        // Demasiado corto: no
+        $this->reservar(['telefono' => '12345'])->assertSessionHasErrors('telefono');
+
+        $this->assertSame(0, Reserva::count());
+
+        // 9 dígitos con espacios: sí
+        $this->reservar(['telefono' => '600 11 12 22'])->assertSessionDoesntHaveErrors();
+
+        // Internacional francés: sí
+        $this->reservar(['telefono' => '+33 6 12 34 56 78', 'hora' => '13:30'])->assertSessionDoesntHaveErrors();
+
+        $this->assertSame(2, Reserva::count());
+    }
+
     public function test_los_apellidos_son_obligatorios(): void
     {
         $this->reservar(['apellidos' => ''])->assertSessionHasErrors('apellidos');

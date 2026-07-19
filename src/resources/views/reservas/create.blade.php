@@ -21,7 +21,9 @@
             <div class="fila">
                 <div class="campo">
                     <label for="telefono">Teléfono</label>
-                    <input type="tel" id="telefono" name="telefono" value="{{ old('telefono') }}" required maxlength="20" placeholder="600 000 000" autocomplete="tel">
+                    <input type="tel" id="telefono" name="telefono" value="{{ old('telefono') }}" required maxlength="20"
+                           placeholder="600 000 000" autocomplete="tel"
+                           pattern="[0-9+\s().\-]{9,20}" title="9 dígitos, o con prefijo internacional (+33...)">
                 </div>
                 <div class="campo">
                     <label for="email">Email <span style="font-weight: 400; color: #737373;">(opcional)</span></label>

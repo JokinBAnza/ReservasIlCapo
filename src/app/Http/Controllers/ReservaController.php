@@ -157,7 +157,18 @@ class ReservaController extends Controller
         $datos = $request->validate([
             'nombre' => ['required', 'string', 'max:100'],
             'apellidos' => ['required', 'string', 'max:100'],
-            'telefono' => ['required', 'string', 'max:20'],
+            'telefono' => [
+                'required', 'string', 'max:20',
+                // Solo cifras, espacios, +, guiones, puntos y paréntesis
+                'regex:/^[0-9+\s().\-]+$/',
+                // Y con un número de dígitos real: 9 (España) hasta 15 (internacional)
+                function (string $atributo, mixed $valor, \Closure $fallo) {
+                    $digitos = strlen(preg_replace('/\D+/', '', (string) $valor));
+                    if ($digitos < 9 || $digitos > 15) {
+                        $fallo('Escribe un teléfono válido: 9 dígitos, o con prefijo internacional (+33...).');
+                    }
+                },
+            ],
             'email' => ['nullable', 'email', 'max:255'],
             'fecha' => ['required', 'date', 'after_or_equal:today'],
             'hora' => ['required', 'in:'.implode(',', $this->horasDisponibles())],
@@ -167,6 +178,7 @@ class ReservaController extends Controller
         ], [
             'personas.max' => "Para grupos de más de :max personas, gestionad la reserva por teléfono.",
             'hora.in' => 'La hora tiene que estar dentro del horario de reservas.',
+            'telefono.regex' => 'El teléfono solo puede contener números, espacios y el prefijo +.',
         ]);
 
         // Trampa antibots: el campo "fax" está oculto para las personas;
