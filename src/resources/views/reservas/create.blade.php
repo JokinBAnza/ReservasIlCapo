@@ -73,7 +73,7 @@
 
             <div class="campo campo-checkbox">
                 <input type="checkbox" id="perro" name="perro" value="1" @checked(old('perro'))>
-                <label for="perro" style="margin-bottom: 0;">Traen perro (la reserva será en la terraza)</label>
+                <label for="perro" style="margin-bottom: 0;">Voy con perro (la reserva será en la terraza)</label>
             </div>
 
             <button type="submit" class="boton">Reservar mesa</button>

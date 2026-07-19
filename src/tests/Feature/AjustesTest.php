@@ -185,6 +185,29 @@ class AjustesTest extends TestCase
         ])->assertSessionHasErrors('turnos.comida.fin');
     }
 
+    public function test_el_cupo_de_comensales_por_franja_cierra_la_franja(): void
+    {
+        // Cupo de 6 comensales por franja (editable desde ajustes)
+        $this->actingAs($this->personal)->post('/ajustes', [
+            'dias' => [1, 2, 3, 4, 5, 6, 7],
+            'limite' => 10,
+            'limite_personas' => 6,
+        ])->assertSessionHas('exito');
+        auth()->logout();
+
+        $fecha = now()->addDay()->toDateString();
+
+        // 4 comensales entran; otros 4 ya no caben (4+4=8 > 6); 2 sí (4+2=6)
+        $this->reservarPublico($fecha, ['personas' => 4])->assertSessionDoesntHaveErrors();
+        $this->reservarPublico($fecha, ['personas' => 4])->assertSessionHasErrors('disponibilidad');
+        $this->reservarPublico($fecha, ['personas' => 2])->assertSessionDoesntHaveErrors();
+
+        $this->assertSame(2, Reserva::count());
+
+        // En otra franja el cupo empieza de cero
+        $this->reservarPublico($fecha, ['personas' => 4, 'hora' => '14:00'])->assertSessionDoesntHaveErrors();
+    }
+
     public function test_la_antelacion_minima_frena_las_reservas_online_de_ultima_hora(): void
     {
         // 48 horas de antelación: ni siquiera mañana es reservable online

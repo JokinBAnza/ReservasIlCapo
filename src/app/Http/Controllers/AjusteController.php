@@ -34,6 +34,7 @@ class AjusteController extends Controller
                 ->sortBy(fn (array $r) => $r[0])
                 ->values(),
             'limitePorHora' => Ajuste::valor('maximo_reservas_por_hora', config('reservas.maximo_reservas_por_hora')),
+            'limitePersonasHora' => Ajuste::valor('maximo_personas_por_hora', config('reservas.maximo_personas_por_hora')),
             'antelacion' => Ajuste::valor('antelacion_minima_minutos', config('reservas.antelacion_minima_minutos')),
             'mesas' => Mesa::orderBy('numero')->get()->groupBy('comedor'),
         ]);
@@ -67,6 +68,7 @@ class AjusteController extends Controller
             'dias' => ['required', 'array', 'min:1'],
             'dias.*' => ['integer', 'between:1,7'],
             'limite' => ['required', 'integer', 'min:1', 'max:50'],
+            'limite_personas' => ['nullable', 'integer', 'min:1', 'max:300'],
             'antelacion' => ['nullable', 'integer', 'min:0', 'max:2880'],
         ];
         foreach ($nombresTurnos as $t) {
@@ -86,6 +88,10 @@ class AjusteController extends Controller
 
         Ajuste::guardar('dias_abiertos', array_values(array_map('intval', $datos['dias'])));
         Ajuste::guardar('maximo_reservas_por_hora', (int) $datos['limite']);
+
+        if ($request->filled('limite_personas')) {
+            Ajuste::guardar('maximo_personas_por_hora', (int) $datos['limite_personas']);
+        }
 
         if ($request->filled('antelacion')) {
             Ajuste::guardar('antelacion_minima_minutos', (int) $datos['antelacion']);

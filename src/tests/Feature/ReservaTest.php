@@ -120,6 +120,10 @@ class ReservaTest extends TestCase
 
     public function test_las_mesas_de_combinaciones_son_las_ultimas_de_4_en_terraza(): void
     {
+        // Cupo de comensales amplio: este test llena 9 mesas de 4 en la
+        // misma franja y aquí lo que se prueba es el orden de asignación
+        \App\Models\Ajuste::guardar('maximo_personas_por_hora', 100);
+
         // Las 7 mesas de 4 de la terraza que no forman parte de ninguna
         // combinación se asignan antes que la 30 y la 31 (que sí combinan)
         $otras = [32, 33, 34, 35, 36, 37, 38];

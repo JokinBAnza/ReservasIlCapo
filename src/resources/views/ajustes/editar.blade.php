@@ -55,14 +55,22 @@
                     <input type="number" id="limite" name="limite" value="{{ old('limite', $limitePorHora) }}" min="1" max="50" required>
                 </div>
                 <div class="campo">
-                    <label for="antelacion">Antelación mínima online (minutos)</label>
-                    <input type="number" id="antelacion" name="antelacion" value="{{ old('antelacion', $antelacion) }}" min="0" max="2880" step="15">
-                    <p style="color: #737373; font-size: .8rem; margin-top: .35rem;">
-                        La web deja de aceptar reservas cuando falta menos de este tiempo
-                        para la hora pedida: esas mesas quedan para quien llega sin reserva.
-                        El personal no tiene este límite.
-                    </p>
+                    <label for="limite_personas">Máximo de comensales por franja</label>
+                    <input type="number" id="limite_personas" name="limite_personas" value="{{ old('limite_personas', $limitePersonasHora) }}" min="1" max="300">
                 </div>
+            </div>
+            <p style="color: #737373; font-size: .8rem; margin-top: -.5rem; margin-bottom: 1rem; max-width: 660px;">
+                La franja se cierra al alcanzar cualquiera de los dos límites, lo que llegue primero.
+            </p>
+
+            <div class="campo" style="max-width: 320px;">
+                <label for="antelacion">Antelación mínima online (minutos)</label>
+                <input type="number" id="antelacion" name="antelacion" value="{{ old('antelacion', $antelacion) }}" min="0" max="2880" step="15">
+                <p style="color: #737373; font-size: .8rem; margin-top: .35rem;">
+                    La web deja de aceptar reservas cuando falta menos de este tiempo
+                    para la hora pedida: esas mesas quedan para quien llega sin reserva.
+                    El personal no tiene este límite.
+                </p>
             </div>
 
             <button type="submit" class="boton">Guardar ajustes</button>

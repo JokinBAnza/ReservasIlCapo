@@ -23,6 +23,11 @@ return [
     // la cocina y la sala con demasiadas llegadas a la vez.
     'maximo_reservas_por_hora' => 10,
 
+    // Máximo de comensales (suma de personas) por franja horaria.
+    // La franja se cierra cuando se alcanza cualquiera de los dos
+    // límites: número de reservas o número de personas.
+    'maximo_personas_por_hora' => 30,
+
     // Turnos en los que se aceptan reservas (de inicio a fin, ambos incluidos)
     // y separación en minutos entre las horas que se ofrecen.
     'intervalo_minutos' => 15,

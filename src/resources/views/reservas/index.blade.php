@@ -31,7 +31,7 @@
                     @foreach ($reservas as $reserva)
                         <tr>
                             <td><strong>{{ $reserva->fecha_hora->format('H:i') }}</strong></td>
-                            <td>{{ $reserva->nombre }} {{ $reserva->apellidos }}@if ($reserva->perro) <span title="Traen perro">🐕</span>@endif</td>
+                            <td>{{ $reserva->nombre }} {{ $reserva->apellidos }}@if ($reserva->perro) <span title="Con perro">🐕</span>@endif</td>
                             <td>{{ $reserva->telefono }}</td>
                             <td style="font-family: monospace;">{{ $reserva->localizador }}</td>
                             <td>{{ $reserva->personas }}</td>

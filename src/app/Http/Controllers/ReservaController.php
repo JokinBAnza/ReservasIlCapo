@@ -260,6 +260,15 @@ class ReservaController extends Controller
                     return ['error' => "A las {$datos['hora']} ya hay el máximo de {$limitePorHora} reservas. Elegid otra hora."];
                 }
 
+                // Segundo tope de la franja: comensales totales. Se cierra la
+                // franja al llegar a cualquiera de los dos límites.
+                $limitePersonas = Ajuste::valor('maximo_personas_por_hora', config('reservas.maximo_personas_por_hora'));
+                $personasEnFranja = (int) Reserva::where('fecha_hora', $fechaHora)->sum('personas');
+
+                if ($personasEnFranja + (int) $datos['personas'] > $limitePersonas) {
+                    return ['error' => "A las {$datos['hora']} ya está completo el cupo de comensales. Elegid otra hora, por favor."];
+                }
+
                 $mesas = $this->buscarMesasLibres($fechaHora, $datos['personas'], $datos['comedor']);
 
                 if (! $mesas) {
