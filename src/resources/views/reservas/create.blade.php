@@ -78,6 +78,12 @@
                 <label for="perro" style="margin-bottom: 0;">Voy con perro (la reserva será en la terraza)</label>
             </div>
 
+            <div class="campo">
+                <label for="observaciones">Observaciones <span style="font-weight: 400; color: #737373;">(opcional)</span></label>
+                <textarea id="observaciones" name="observaciones" maxlength="200" rows="2"
+                          placeholder="Alergias, trona para bebé, celebración...">{{ old('observaciones') }}</textarea>
+            </div>
+
             <button type="submit" class="boton">Reservar mesa</button>
 
             <p style="color: #999999; font-size: .78rem; margin-top: 1rem;">

@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Mail\ReservaConfirmada;
+use App\Mail\ReservaRecibida;
 use App\Models\Reserva;
+use App\Models\User;
 use Database\Seeders\MesasSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -45,14 +47,42 @@ class ConfirmacionEmailTest extends TestCase
         $this->assertSame('cliente@example.com', Reserva::first()->email);
     }
 
-    public function test_sin_email_no_se_envia_nada_y_la_reserva_vale_igual(): void
+    public function test_sin_email_del_cliente_no_hay_confirmacion_pero_si_aviso_interno(): void
     {
         Mail::fake();
 
         $this->reservarPublico()->assertRedirect(route('reservas.confirmada'));
 
-        Mail::assertNothingSent();
+        Mail::assertNotSent(ReservaConfirmada::class);
+        Mail::assertSent(ReservaRecibida::class);
         $this->assertSame(1, Reserva::count());
+    }
+
+    public function test_cada_reserva_de_cliente_avisa_al_restaurante(): void
+    {
+        Mail::fake();
+
+        $this->reservarPublico();
+
+        Mail::assertSent(ReservaRecibida::class, fn ($aviso) => $aviso->hasTo(config('reservas.email_avisos')));
+    }
+
+    public function test_las_reservas_del_personal_no_generan_aviso_interno(): void
+    {
+        Mail::fake();
+
+        $personal = User::factory()->create();
+        $this->actingAs($personal)->post(route('reservas.store'), [
+            'nombre' => 'Telefonica',
+            'apellidos' => 'DelPersonal',
+            'telefono' => '600999888',
+            'fecha' => now()->addDay()->toDateString(),
+            'hora' => '13:00',
+            'personas' => 2,
+            'comedor' => 'dentro',
+        ])->assertSessionDoesntHaveErrors();
+
+        Mail::assertNotSent(ReservaRecibida::class);
     }
 
     public function test_el_enlace_firmado_del_email_permite_anular(): void

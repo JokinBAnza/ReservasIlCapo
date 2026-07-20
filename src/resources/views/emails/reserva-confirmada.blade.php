@@ -10,6 +10,9 @@ Te esperamos en **Il Capo**:
 - **Hora:** {{ $reserva->fecha_hora->format('H:i') }}
 - **Personas:** {{ $reserva->personas }}
 - **Comedor:** {{ $reserva->mesas->first()?->comedor === 'terraza' ? 'Terraza' : 'Interior' }}
+@if ($reserva->observaciones)
+- **Observaciones:** {{ $reserva->observaciones }}
+@endif
 
 Si te surge un imprevisto, puedes anular la reserva con este botón:
 

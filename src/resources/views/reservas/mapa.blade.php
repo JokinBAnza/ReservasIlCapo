@@ -35,7 +35,7 @@
                 @foreach ($comedores[$comedor] ?? [] as $mesa)
                     @php $reserva = $ocupadas[$mesa->id] ?? null; @endphp
                     <div class="mesa {{ $reserva ? 'mesa-ocupada' : 'mesa-libre' }}"
-                         @if ($reserva) title="{{ $reserva->nombre }} {{ $reserva->apellidos }} · {{ $reserva->personas }} pers. · {{ $reserva->fecha_hora->format('H:i') }}" @endif>
+                         @if ($reserva) title="{{ $reserva->nombre }} {{ $reserva->apellidos }} · {{ $reserva->personas }} pers. · {{ $reserva->fecha_hora->format('H:i') }}{{ $reserva->observaciones ? ' · 📝 '.$reserva->observaciones : '' }}" @endif>
                         <strong>{{ $mesa->numero === 0 ? 'Pared' : $mesa->numero }}</strong>
                         <small>{{ $mesa->capacidad }} pers.</small>
                         @if ($reserva && $reserva->sin_reserva)

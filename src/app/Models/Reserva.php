@@ -16,6 +16,7 @@ class Reserva extends Model
         'email',
         'personas',
         'perro',
+        'observaciones',
         'sin_reserva',
         'fecha_hora',
     ];

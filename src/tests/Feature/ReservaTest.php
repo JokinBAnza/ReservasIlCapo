@@ -214,6 +214,34 @@ class ReservaTest extends TestCase
         $this->assertSame(0, Reserva::count());
     }
 
+    public function test_las_observaciones_se_guardan_y_se_ven_en_el_listado(): void
+    {
+        $this->reservar(['observaciones' => 'Alergia a los frutos secos'])
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertSame('Alergia a los frutos secos', Reserva::first()->observaciones);
+
+        $this->actingAs($this->personal)
+            ->get(route('reservas.index', ['fecha' => now()->addDay()->toDateString()]))
+            ->assertSee('Alergia a los frutos secos');
+    }
+
+    public function test_las_observaciones_no_pueden_pasar_de_200_caracteres(): void
+    {
+        $this->reservar(['observaciones' => str_repeat('a', 201)])
+            ->assertSessionHasErrors('observaciones');
+
+        $this->assertSame(0, Reserva::count());
+    }
+
+    public function test_el_mensaje_de_grupo_grande_incluye_el_telefono(): void
+    {
+        $this->reservar(['personas' => 25]);
+
+        $mensaje = session('errors')->get('personas')[0];
+        $this->assertStringContainsString('688 716 226', $mensaje);
+    }
+
     public function test_nombre_y_apellidos_no_pueden_pasar_de_30_caracteres(): void
     {
         $largo = str_repeat('a', 31);

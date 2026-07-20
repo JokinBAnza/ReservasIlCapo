@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\ReservaConfirmada;
+use App\Mail\ReservaRecibida;
 use App\Models\Ajuste;
 use App\Models\Mesa;
 use App\Models\Reserva;
@@ -193,9 +194,10 @@ class ReservaController extends Controller
             'hora' => ['required', 'in:'.implode(',', $this->horasDisponibles())],
             'personas' => ['required', 'integer', 'min:1', "max:{$maxPersonas}"],
             'perro' => ['nullable', 'boolean'],
+            'observaciones' => ['nullable', 'string', 'max:200'],
             'comedor' => ['required', 'in:dentro,terraza'],
         ], [
-            'personas.max' => "Para grupos de más de :max personas, gestionad la reserva por teléfono.",
+            'personas.max' => 'Para grupos de más de :max personas, llámanos al '.config('reservas.telefono_restaurante').' y lo organizamos.',
             'hora.in' => 'La hora tiene que estar dentro del horario de reservas.',
             'telefono.regex' => 'El teléfono solo puede contener números, espacios y el prefijo +.',
         ]);
@@ -224,7 +226,7 @@ class ReservaController extends Controller
             if ($pendientes >= $limiteTelefono) {
                 return back()
                     ->withInput()
-                    ->withErrors(['telefono' => "Este teléfono ya tiene {$limiteTelefono} reservas pendientes. Para reservar más, llamadnos por teléfono."]);
+                    ->withErrors(['telefono' => "Este teléfono ya tiene {$limiteTelefono} reservas pendientes. Para reservar más, llámanos al ".config('reservas.telefono_restaurante').'.']);
             }
         }
 
@@ -269,7 +271,7 @@ class ReservaController extends Controller
             if ($fechaHora->lt(now()->addMinutes($antelacion))) {
                 return back()
                     ->withInput()
-                    ->withErrors(['hora' => "Las reservas online se cierran {$antelacion} minutos antes de la hora. Llámanos por teléfono y te buscamos hueco."]);
+                    ->withErrors(['hora' => "Las reservas online se cierran {$antelacion} minutos antes de la hora. Llámanos al ".config('reservas.telefono_restaurante').' y te buscamos hueco.']);
             }
         }
 
@@ -314,6 +316,7 @@ class ReservaController extends Controller
                         'email' => $datos['email'] ?? null,
                         'personas' => $datos['personas'],
                         'perro' => $conPerro,
+                        'observaciones' => $datos['observaciones'] ?? null,
                         'fecha_hora' => $fechaHora,
                     ]);
                     $reserva->mesas()->attach($mesas->pluck('id'));
@@ -346,6 +349,17 @@ class ReservaController extends Controller
                 Mail::to($reserva->email)->send(new ReservaConfirmada($reserva));
             } catch (\Throwable $e) {
                 Log::error("No se pudo enviar la confirmación de la reserva {$reserva->id}: {$e->getMessage()}");
+            }
+        }
+
+        // Aviso interno al restaurante (solo reservas de clientes desde la
+        // web; las del personal no hace falta avisarlas). Si el correo no
+        // está configurado o falla, la reserva sigue siendo válida.
+        if (! Auth::check()) {
+            try {
+                Mail::to(config('reservas.email_avisos'))->send(new ReservaRecibida($reserva));
+            } catch (\Throwable $e) {
+                Log::error("No se pudo enviar el aviso interno de la reserva {$reserva->id}: {$e->getMessage()}");
             }
         }
 

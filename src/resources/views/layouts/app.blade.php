@@ -27,8 +27,8 @@
         .aviso-error ul { list-style: none; }
         label { display: block; font-weight: 600; font-size: .85rem; margin-bottom: .35rem; }
         /* 16px mínimo: evita que iPhone haga zoom al tocar un campo */
-        input, select { width: 100%; padding: .6rem .8rem; border: none; border-radius: 10px; font-size: 1rem; font-family: inherit; background: #FFF6EA; box-shadow: inset 0 0 0 1px rgba(34,34,34,.15); color: #222222; }
-        input:focus, select:focus { outline: 2px solid #553735; }
+        input, select, textarea { width: 100%; padding: .6rem .8rem; border: none; border-radius: 10px; font-size: 1rem; font-family: inherit; background: #FFF6EA; box-shadow: inset 0 0 0 1px rgba(34,34,34,.15); color: #222222; resize: vertical; }
+        input:focus, select:focus, textarea:focus { outline: 2px solid #553735; }
         .campo { margin-bottom: 1.1rem; }
         .campo-checkbox { display: flex; align-items: center; gap: .5rem; }
         .campo-fax { position: absolute; left: -9999px; top: -9999px; }

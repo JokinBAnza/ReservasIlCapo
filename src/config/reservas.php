@@ -2,6 +2,15 @@
 
 return [
 
+    // Teléfono del restaurante: aparece en los mensajes que invitan a llamar
+    // (grupos muy grandes, sin hueco online, etc.)
+    'telefono_restaurante' => '688 716 226',
+
+    // Dirección que recibe el aviso interno de cada reserva nueva hecha por
+    // un cliente desde la web. Requiere el correo (Brevo) configurado; si no
+    // lo está, el aviso simplemente no sale y la reserva funciona igual.
+    'email_avisos' => 'info@ilcapo.net',
+
     // Horas que una reserva bloquea la mesa, antes y después de la hora reservada.
     'duracion_horas' => 2,
 
