@@ -152,7 +152,8 @@
         <h2 style="margin-bottom: .5rem;">Capacidad de las mesas</h2>
         <p style="color: #737373; font-size: .9rem; margin-bottom: 1rem;">
             Los cambios valen para las reservas nuevas; las ya asignadas no se recolocan.
-            Los máximos de los grupos grandes (mesas combinadas) se recalculan solos.
+            Las combinaciones de mesas para grupos grandes tienen su propia capacidad
+            (la de la mesa ya montada) y no se ven afectadas por estos valores.
         </p>
 
         <form method="POST" action="{{ route('ajustes.mesas') }}">

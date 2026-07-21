@@ -50,16 +50,29 @@ return [
     | Combinaciones de mesas contiguas
     |--------------------------------------------------------------------------
     | Grupos de mesas (por su número) que se pueden juntar para grupos grandes.
+    |
+    | 'capacidad' es la de la combinación ya montada, que suele ser mayor que
+    | la suma de las mesas sueltas (al juntarlas caben sillas extra en la
+    | unión). Es la que manda para decidir si un grupo cabe.
+    |
     | El comedor de la combinación es el de su PRIMERA mesa; las demás pueden
     | ser auxiliares de otro comedor que se mueven físicamente (p. ej. la
     | "pared", mesa 0, que vive dentro pero se saca a la terraza).
-    | Para añadir una combinación nueva, añade una línea: [numero, numero, ...]
+    |
+    | Para añadir una combinación nueva, añade una línea con sus mesas y su
+    | capacidad real: ['mesas' => [numero, numero, ...], 'capacidad' => N]
     */
     'combinaciones' => [
-        [41, 30],     // terraza, 10 + 4     = 14 personas
-        [41, 30, 0],  // terraza, 10 + 4 + 2 = 16 personas (la 0, "pared", se mueve desde dentro)
-        [41, 30, 31], // terraza, 10 + 4 + 4 = 18 personas
-        [41, 42],     // terraza, 10 + 10    = 20 personas
+        // Terraza
+        ['mesas' => [41, 30],     'capacidad' => 14],
+        ['mesas' => [41, 30, 0],  'capacidad' => 16], // la 0 ("pared") se mueve desde dentro
+        ['mesas' => [41, 30, 31], 'capacidad' => 18],
+        ['mesas' => [41, 42],     'capacidad' => 20],
+
+        // Comedor de dentro
+        ['mesas' => [21, 16],     'capacidad' => 12],
+        ['mesas' => [22, 17],     'capacidad' => 14],
+        ['mesas' => [22, 17, 0],  'capacidad' => 16],
     ],
 
 ];

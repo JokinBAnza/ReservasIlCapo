@@ -476,12 +476,12 @@ class ReservaController extends Controller
             ->where('reservas.fecha_hora', '<', $fin)
             ->pluck('mesa_reserva.mesa_id');
 
-        $combinaciones = config('reservas.combinaciones');
+        $combinaciones = collect(config('reservas.combinaciones'));
 
         // 1) Una sola mesa, la más pequeña donde quepa el grupo. A igual
         //    capacidad, las mesas que forman parte de una combinación se
         //    asignan las últimas, para dejarlas libres para grupos grandes.
-        $enCombinacion = collect($combinaciones)->flatten()->unique();
+        $enCombinacion = $combinaciones->pluck('mesas')->flatten()->unique();
 
         $consulta = Mesa::where('comedor', $comedor)
             ->where('capacidad', '>=', $personas)
@@ -499,19 +499,26 @@ class ReservaController extends Controller
             return collect([$mesa]);
         }
 
-        // 2) Combinaciones de mesas con todas sus mesas libres y capacidad
-        //    suficiente. El comedor de la combinación lo marca su primera
-        //    mesa: las demás pueden ser auxiliares de otro comedor que se
-        //    mueven físicamente (como la "pared").
+        // 2) Combinaciones de mesas: la más ajustada de las que caben, con
+        //    todas sus mesas libres. Manda la capacidad declarada de la
+        //    combinación montada, no la suma de las mesas sueltas. El comedor
+        //    lo marca su primera mesa: las demás pueden ser auxiliares de otro
+        //    comedor que se mueven físicamente (como la "pared").
 
-        return collect($combinaciones)
-            ->map(fn (array $numeros) => Mesa::whereIn('numero', $numeros)
-                ->whereNotIn('id', $mesasOcupadas)
-                ->get())
-            ->filter(fn (Collection $mesas, int $i) => $mesas->count() === count($combinaciones[$i]))
-            ->filter(fn (Collection $mesas, int $i) => $mesas->firstWhere('numero', $combinaciones[$i][0])?->comedor === $comedor)
-            ->filter(fn (Collection $mesas) => $mesas->sum('capacidad') >= $personas)
-            ->sortBy(fn (Collection $mesas) => $mesas->sum('capacidad'))
+        return $combinaciones
+            ->filter(fn (array $combo) => $combo['capacidad'] >= $personas)
+            ->sortBy('capacidad')
+            ->map(function (array $combo) use ($mesasOcupadas, $comedor): ?Collection {
+                $mesas = Mesa::whereIn('numero', $combo['mesas'])
+                    ->whereNotIn('id', $mesasOcupadas)
+                    ->get();
+
+                $todasLibres = $mesas->count() === count($combo['mesas']);
+                $suComedor = $mesas->firstWhere('numero', $combo['mesas'][0])?->comedor;
+
+                return ($todasLibres && $suComedor === $comedor) ? $mesas : null;
+            })
+            ->filter()
             ->first();
     }
 
@@ -547,12 +554,9 @@ class ReservaController extends Controller
     // Tamaño máximo de grupo reservable: la mayor mesa o combinación del restaurante
     private function maxPersonas(): int
     {
-        $capacidades = Mesa::pluck('capacidad', 'numero');
+        $maxMesa = (int) Mesa::max('capacidad');
+        $maxCombinacion = (int) collect(config('reservas.combinaciones'))->max('capacidad');
 
-        $maxCombinacion = collect(config('reservas.combinaciones'))
-            ->map(fn (array $numeros) => collect($numeros)->sum(fn (int $n) => $capacidades[$n] ?? 0))
-            ->max() ?? 0;
-
-        return max($capacidades->max() ?? 0, $maxCombinacion);
+        return max($maxMesa, $maxCombinacion);
     }
 }

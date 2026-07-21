@@ -80,11 +80,47 @@ class ReservaTest extends TestCase
 
     public function test_grupo_grande_sin_combinacion_posible_da_error_de_disponibilidad(): void
     {
-        // Dentro no hay combinaciones definidas: un grupo de 12 no cabe
-        $this->reservar(['personas' => 12, 'comedor' => 'dentro'])
+        // Dentro la mayor combinación es de 16: un grupo de 18 no cabe
+        $this->reservar(['personas' => 18, 'comedor' => 'dentro'])
             ->assertSessionHasErrors('disponibilidad');
 
         $this->assertSame(0, Reserva::count());
+    }
+
+    public function test_grupo_de_12_dentro_junta_las_mesas_21_y_16(): void
+    {
+        $this->reservar(['personas' => 12, 'comedor' => 'dentro'])->assertSessionHas('exito');
+
+        $this->assertSame([16, 21], $this->mesasDeLaUltimaReserva());
+    }
+
+    public function test_grupo_de_14_dentro_junta_las_mesas_22_y_17(): void
+    {
+        // 22+17 suman 13 sueltas, pero montadas dan para 14
+        $this->reservar(['personas' => 14, 'comedor' => 'dentro'])->assertSessionHas('exito');
+
+        $this->assertSame([17, 22], $this->mesasDeLaUltimaReserva());
+    }
+
+    public function test_grupo_de_16_dentro_junta_las_mesas_22_17_y_pared(): void
+    {
+        $this->reservar(['personas' => 16, 'comedor' => 'dentro'])->assertSessionHas('exito');
+
+        $this->assertSame([0, 17, 22], $this->mesasDeLaUltimaReserva());
+    }
+
+    public function test_la_pared_no_puede_servir_a_dos_combinaciones_a_la_vez(): void
+    {
+        // La "pared" (mesa 0) está en 41+30+0 (terraza) y en 22+17+0 (dentro).
+        // Si un grupo de 15 se la lleva a la terraza, el de 16 de dentro
+        // ya no puede montarse.
+        $this->reservar(['personas' => 15, 'comedor' => 'terraza'])->assertSessionHas('exito');
+        $this->assertSame([0, 30, 41], $this->mesasDeLaUltimaReserva());
+
+        $this->reservar(['personas' => 16, 'comedor' => 'dentro'])
+            ->assertSessionHasErrors('disponibilidad');
+
+        $this->assertSame(1, Reserva::count());
     }
 
     public function test_combinacion_con_una_mesa_ocupada_no_esta_disponible(): void
