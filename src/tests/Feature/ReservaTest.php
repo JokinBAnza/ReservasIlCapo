@@ -88,11 +88,18 @@ class ReservaTest extends TestCase
         $this->assertSame(0, Reserva::count());
     }
 
-    public function test_grupo_de_20_dentro_junta_las_mesas_21_22_y_16(): void
+    public function test_grupo_de_18_dentro_junta_las_mesas_21_22_y_16(): void
+    {
+        $this->reservar(['personas' => 18, 'comedor' => 'dentro'])->assertSessionHas('exito');
+
+        $this->assertSame([16, 21, 22], $this->mesasDeLaUltimaReserva());
+    }
+
+    public function test_grupo_de_20_dentro_suma_ademas_la_mesa_15(): void
     {
         $this->reservar(['personas' => 20, 'comedor' => 'dentro'])->assertSessionHas('exito');
 
-        $this->assertSame([16, 21, 22], $this->mesasDeLaUltimaReserva());
+        $this->assertSame([15, 16, 21, 22], $this->mesasDeLaUltimaReserva());
     }
 
     public function test_grupo_de_12_dentro_junta_las_mesas_21_y_16(): void
