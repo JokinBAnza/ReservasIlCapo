@@ -80,11 +80,19 @@ class ReservaTest extends TestCase
 
     public function test_grupo_grande_sin_combinacion_posible_da_error_de_disponibilidad(): void
     {
-        // Dentro la mayor combinación es de 16: un grupo de 18 no cabe
-        $this->reservar(['personas' => 18, 'comedor' => 'dentro'])
-            ->assertSessionHasErrors('disponibilidad');
+        // Dentro la mayor combinación es de 20: un grupo de 21 no cabe
+        // (y 21 supera el máximo global, así que lo frena la validación)
+        $this->reservar(['personas' => 21, 'comedor' => 'dentro'])
+            ->assertSessionHasErrors();
 
         $this->assertSame(0, Reserva::count());
+    }
+
+    public function test_grupo_de_20_dentro_junta_las_mesas_21_22_y_16(): void
+    {
+        $this->reservar(['personas' => 20, 'comedor' => 'dentro'])->assertSessionHas('exito');
+
+        $this->assertSame([16, 21, 22], $this->mesasDeLaUltimaReserva());
     }
 
     public function test_grupo_de_12_dentro_junta_las_mesas_21_y_16(): void

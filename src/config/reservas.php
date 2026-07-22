@@ -73,6 +73,7 @@ return [
         ['mesas' => [21, 16],     'capacidad' => 12],
         ['mesas' => [22, 17],     'capacidad' => 14],
         ['mesas' => [22, 17, 0],  'capacidad' => 16],
+        ['mesas' => [21, 22, 16], 'capacidad' => 20], // 8 + 8 + 4
     ],
 
 ];
