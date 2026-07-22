@@ -278,8 +278,10 @@ class ReservaController extends Controller
         // Torno de entrada: las reservas se procesan de una en una para que
         // dos peticiones simultáneas no puedan quedarse la misma mesa. La
         // comprobación de disponibilidad y la creación van juntas bajo llave.
+        $esPublico = ! Auth::check();
+
         try {
-            $resultado = Cache::lock('crear-reserva', 10)->block(5, function () use ($datos, $fechaHora, $conPerro) {
+            $resultado = Cache::lock('crear-reserva', 10)->block(5, function () use ($datos, $fechaHora, $conPerro, $esPublico) {
                 // Mismo teléfono a la misma hora exacta: es un doble envío o un
                 // despiste; se rechaza para no duplicar (el personal sí puede,
                 // p. ej. al partir un grupo muy grande en dos reservas)
@@ -302,7 +304,7 @@ class ReservaController extends Controller
                     return ['error' => "A las {$datos['hora']} ya está completo el cupo de comensales. Elegid otra hora, por favor."];
                 }
 
-                $mesas = $this->buscarMesasLibres($fechaHora, $datos['personas'], $datos['comedor']);
+                $mesas = $this->buscarMesasLibres($fechaHora, $datos['personas'], $datos['comedor'], $esPublico);
 
                 if (! $mesas) {
                     return ['error' => 'No quedan mesas libres para ese grupo a esa hora en el comedor elegido.'];
@@ -462,7 +464,7 @@ class ReservaController extends Controller
      * ajustada); si ninguna llega, prueba las combinaciones de mesas contiguas
      * de config/reservas.php, de menor a mayor capacidad total.
      */
-    private function buscarMesasLibres(Carbon $fechaHora, int $personas, string $comedor): ?Collection
+    private function buscarMesasLibres(Carbon $fechaHora, int $personas, string $comedor, bool $aplicarMinimo = false): ?Collection
     {
         $duracion = config('reservas.duracion_horas');
         $inicio = $fechaHora->copy()->subHours($duracion);
@@ -487,6 +489,18 @@ class ReservaController extends Controller
             ->where('capacidad', '>=', $personas)
             ->whereNotIn('id', $mesasOcupadas)
             ->orderBy('capacidad');
+
+        // En la web pública, las mesas con mínimo no se ofrecen a grupos
+        // más pequeños que ese mínimo (quedan para los grupos grandes).
+        if ($aplicarMinimo) {
+            $bajoMinimo = collect(config('reservas.minimo_personas_por_mesa'))
+                ->filter(fn (int $min) => $personas < $min)
+                ->keys();
+
+            if ($bajoMinimo->isNotEmpty()) {
+                $consulta->whereNotIn('numero', $bajoMinimo->all());
+            }
+        }
 
         if ($enCombinacion->isNotEmpty()) {
             $marcadores = $enCombinacion->map(fn () => '?')->implode(',');

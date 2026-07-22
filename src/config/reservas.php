@@ -18,6 +18,18 @@ return [
     // (protección de datos: no acumular datos personales sin necesidad).
     'meses_conservacion' => 12,
 
+    // Mínimo de comensales para reservar ONLINE ciertas mesas grandes, para
+    // que un grupo pequeño no ocupe por internet una mesa reservada de hecho
+    // a los grupos grandes. Solo afecta a la web pública: el personal puede
+    // sentar a quien quiera en cualquier mesa. Las mesas no listadas no tienen
+    // mínimo. Clave = número de mesa, valor = mínimo de personas.
+    'minimo_personas_por_mesa' => [
+        21 => 6,
+        22 => 6,
+        20 => 7,
+        23 => 7,
+    ],
+
     // Antelación mínima (en minutos) para reservar desde la web pública.
     // Evita reservas online de última hora mientras se sienta a gente
     // que llega sin reserva. El personal logueado no tiene este límite.

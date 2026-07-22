@@ -315,6 +315,82 @@ class ReservaTest extends TestCase
         $this->assertMatchesRegularExpression('/^[A-HJ-NP-Z2-9]{6}$/', $codigos->first());
     }
 
+    // Deja libres solo las 4 mesas grandes de dentro (20,21,22,23) ocupando
+    // el resto de mesas con capacidad suficiente en esa franja
+    private function ocuparMesasPequenasDentro(): void
+    {
+        \App\Models\Ajuste::guardar('maximo_personas_por_hora', 999);
+        \App\Models\Ajuste::guardar('maximo_reservas_por_hora', 999);
+
+        $fh = now()->addDay()->setTime(13, 0);
+        foreach ([5, 6, 7, 8, 10, 11, 12, 13, 15, 16, 17, 19] as $numero) {
+            $mesa = \App\Models\Mesa::where('numero', $numero)->first();
+            $r = Reserva::create([
+                'nombre' => 'Ocupa', 'apellidos' => 'X', 'telefono' => '600000000',
+                'personas' => $mesa->capacidad, 'sin_reserva' => true, 'fecha_hora' => $fh,
+            ]);
+            $r->mesas()->attach($mesa->id);
+        }
+    }
+
+    public function test_online_un_grupo_pequeno_no_recibe_una_mesa_grande(): void
+    {
+        $this->ocuparMesasPequenasDentro();
+
+        // Un grupo de 4 por la WEB no puede quedarse una mesa de 8 o 10:
+        // todas las libres tienen mínimo (21/22→6, 20/23→7)
+        $this->post(route('reservas.store'), [
+            'nombre' => 'Cuatro', 'apellidos' => 'Web', 'telefono' => '611000000',
+            'fecha' => now()->addDay()->toDateString(), 'hora' => '13:00',
+            'personas' => 4, 'comedor' => 'dentro',
+        ])->assertSessionHasErrors('disponibilidad');
+
+        $this->assertNull(Reserva::where('telefono', '611000000')->first());
+    }
+
+    public function test_online_un_grupo_de_6_si_puede_usar_la_21(): void
+    {
+        $this->ocuparMesasPequenasDentro();
+
+        $this->post(route('reservas.store'), [
+            'nombre' => 'Seis', 'apellidos' => 'Web', 'telefono' => '611000006',
+            'fecha' => now()->addDay()->toDateString(), 'hora' => '13:00',
+            'personas' => 6, 'comedor' => 'dentro',
+        ])->assertSessionDoesntHaveErrors();
+
+        $mesas = Reserva::where('telefono', '611000006')->first()->mesas->pluck('numero')->all();
+        $this->assertSame([21], $mesas);
+    }
+
+    public function test_online_un_grupo_de_7_va_a_la_21_antes_que_a_la_20(): void
+    {
+        $this->ocuparMesasPequenasDentro();
+
+        $this->post(route('reservas.store'), [
+            'nombre' => 'Siete', 'apellidos' => 'Web', 'telefono' => '611000007',
+            'fecha' => now()->addDay()->toDateString(), 'hora' => '13:00',
+            'personas' => 7, 'comedor' => 'dentro',
+        ])->assertSessionDoesntHaveErrors();
+
+        $mesas = Reserva::where('telefono', '611000007')->first()->mesas->pluck('numero')->all();
+        $this->assertSame([21], $mesas);
+    }
+
+    public function test_el_personal_si_puede_sentar_a_4_en_una_mesa_grande(): void
+    {
+        $this->ocuparMesasPequenasDentro();
+
+        // El personal (logueado) no tiene el mínimo: puede usar la mesa grande
+        $this->actingAs($this->personal)->post(route('reservas.store'), [
+            'nombre' => 'Cuatro', 'apellidos' => 'Personal', 'telefono' => '611000004',
+            'fecha' => now()->addDay()->toDateString(), 'hora' => '13:00',
+            'personas' => 4, 'comedor' => 'dentro',
+        ])->assertSessionDoesntHaveErrors();
+
+        $mesas = Reserva::where('telefono', '611000004')->first()->mesas->pluck('numero')->all();
+        $this->assertSame([21], $mesas);
+    }
+
     public function test_el_mapa_de_mesas_exige_iniciar_sesion(): void
     {
         auth()->logout();
