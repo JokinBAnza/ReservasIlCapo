@@ -18,16 +18,20 @@ return [
     // (protección de datos: no acumular datos personales sin necesidad).
     'meses_conservacion' => 12,
 
-    // Mínimo de comensales para reservar ONLINE ciertas mesas grandes, para
-    // que un grupo pequeño no ocupe por internet una mesa reservada de hecho
-    // a los grupos grandes. Solo afecta a la web pública: el personal puede
-    // sentar a quien quiera en cualquier mesa. Las mesas no listadas no tienen
-    // mínimo. Clave = número de mesa, valor = mínimo de personas.
-    'minimo_personas_por_mesa' => [
-        21 => 6,
-        22 => 6,
-        20 => 7,
-        23 => 7,
+    // Mínimo de comensales para reservar ONLINE una mesa según su capacidad,
+    // para que un grupo pequeño no ocupe por internet una mesa más grande de
+    // lo que necesita (queda para grupos mayores). Solo afecta a la web
+    // pública: el personal puede sentar a quien quiera en cualquier mesa.
+    // Como va por capacidad, si cambias la capacidad de una mesa en el panel,
+    // su mínimo se ajusta solo. Una capacidad no listada no tiene mínimo.
+    // Clave = capacidad de la mesa, valor = mínimo de personas.
+    'minimo_por_capacidad' => [
+        2  => 1,
+        4  => 3,
+        6  => 5,
+        7  => 5,
+        8  => 6,
+        10 => 7,
     ],
 
     // Antelación mínima (en minutos) para reservar desde la web pública.

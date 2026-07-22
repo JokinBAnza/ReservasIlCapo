@@ -490,15 +490,16 @@ class ReservaController extends Controller
             ->whereNotIn('id', $mesasOcupadas)
             ->orderBy('capacidad');
 
-        // En la web pública, las mesas con mínimo no se ofrecen a grupos
-        // más pequeños que ese mínimo (quedan para los grupos grandes).
+        // En la web pública, una mesa no se ofrece a un grupo más pequeño que
+        // el mínimo de su capacidad (así queda para grupos mayores). Se
+        // excluyen las capacidades cuyo mínimo supera al grupo.
         if ($aplicarMinimo) {
-            $bajoMinimo = collect(config('reservas.minimo_personas_por_mesa'))
+            $capacidadesVetadas = collect(config('reservas.minimo_por_capacidad'))
                 ->filter(fn (int $min) => $personas < $min)
                 ->keys();
 
-            if ($bajoMinimo->isNotEmpty()) {
-                $consulta->whereNotIn('numero', $bajoMinimo->all());
+            if ($capacidadesVetadas->isNotEmpty()) {
+                $consulta->whereNotIn('capacidad', $capacidadesVetadas->all());
             }
         }
 
@@ -511,6 +512,14 @@ class ReservaController extends Controller
 
         if ($mesa) {
             return collect([$mesa]);
+        }
+
+        // Las combinaciones son solo para grupos que no caben en ninguna mesa
+        // suelta de ese comedor. Un grupo que cabría en una mesa individual
+        // (aunque ahora estén todas ocupadas) no recibe una combinación: se le
+        // rechaza para que llame. Evita, p. ej., dar 41+42 (mesa de 20) a 4.
+        if ($personas <= (int) Mesa::where('comedor', $comedor)->max('capacidad')) {
+            return null;
         }
 
         // 2) Combinaciones de mesas: la más ajustada de las que caben, con

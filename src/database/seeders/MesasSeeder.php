@@ -35,9 +35,9 @@ class MesasSeeder extends Seeder
             ['numero' => 15, 'capacidad' => 4, 'comedor' => 'dentro'],
             ['numero' => 16, 'capacidad' => 4, 'comedor' => 'dentro'],
 
-            // Capacidad 5
-            ['numero' => 17, 'capacidad' => 5, 'comedor' => 'dentro'],
-            ['numero' => 19, 'capacidad' => 5, 'comedor' => 'dentro'],
+            // Capacidad 6
+            ['numero' => 17, 'capacidad' => 6, 'comedor' => 'dentro'],
+            ['numero' => 19, 'capacidad' => 6, 'comedor' => 'dentro'],
 
             // Capacidad 8
             ['numero' => 21, 'capacidad' => 8, 'comedor' => 'dentro'],

@@ -36,6 +36,20 @@ class ReservaTest extends TestCase
         ], $datos));
     }
 
+    // Reserva desde la web pública (sin sesión), con teléfono único por defecto
+    private function reservarPublico(string $fecha, array $datos = [])
+    {
+        return $this->post(route('reservas.store'), array_merge([
+            'nombre' => 'Publico',
+            'apellidos' => 'Web',
+            'telefono' => '6'.rand(10000000, 99999999),
+            'fecha' => $fecha,
+            'hora' => '13:00',
+            'personas' => 4,
+            'comedor' => 'dentro',
+        ], $datos));
+    }
+
     private function mesasDeLaUltimaReserva(): array
     {
         return Reserva::latest('id')->first()->mesas->pluck('numero')->sort()->values()->all();
@@ -389,6 +403,41 @@ class ReservaTest extends TestCase
 
         $mesas = Reserva::where('telefono', '611000004')->first()->mesas->pluck('numero')->all();
         $this->assertSame([21], $mesas);
+    }
+
+    public function test_online_el_minimo_por_capacidad_veta_las_mesas_grandes(): void
+    {
+        $fecha = now()->addDay()->toDateString();
+
+        // Grupo de 3 -> mesa de 4 (mínimo 3); no una de 6/7/8/10
+        $this->reservarPublico($fecha, ['personas' => 3, 'comedor' => 'dentro', 'hora' => '13:00']);
+        $mesa3 = Reserva::latest('id')->first()->mesas->first();
+        $this->assertSame(4, $mesa3->capacidad);
+
+        // Grupo de 5 -> mesa de 6 (mínimo 5); las de 4 no caben, la de 6 sí
+        $this->reservarPublico($fecha, ['personas' => 5, 'comedor' => 'dentro', 'hora' => '13:15']);
+        $mesa5 = Reserva::latest('id')->first()->mesas->first();
+        $this->assertSame(6, $mesa5->capacidad);
+    }
+
+    public function test_online_grupo_de_4_no_puede_ocupar_una_mesa_de_10_en_terraza(): void
+    {
+        // El mínimo por capacidad también protege las mesas grandes de terraza.
+        // Ocupo las mesas de 4 de terraza para que solo queden las de 7 y 10.
+        \App\Models\Ajuste::guardar('maximo_personas_por_hora', 999);
+        $fh = now()->addDay()->setTime(13, 0);
+        foreach ([30, 31, 32, 33, 34, 35, 36, 37, 38] as $numero) {
+            $mesa = \App\Models\Mesa::where('numero', $numero)->first();
+            $r = Reserva::create([
+                'nombre' => 'Ocupa', 'apellidos' => 'X', 'telefono' => '600000000',
+                'personas' => $mesa->capacidad, 'sin_reserva' => true, 'fecha_hora' => $fh,
+            ]);
+            $r->mesas()->attach($mesa->id);
+        }
+
+        // Grupo de 4 online: las de 7 (min 5) y 10 (min 7) están vetadas -> rechazado
+        $this->reservarPublico(now()->addDay()->toDateString(), ['personas' => 4, 'comedor' => 'terraza', 'hora' => '13:00'])
+            ->assertSessionHasErrors('disponibilidad');
     }
 
     public function test_el_mapa_de_mesas_exige_iniciar_sesion(): void
